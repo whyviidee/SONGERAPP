@@ -506,10 +506,16 @@ def api_playlists():
 
 @app.route("/api/playlists/<playlist_id>/tracks")
 def api_playlist_tracks(playlist_id):
+    print(f"[DEBUG] === PLAYLIST TRACKS REQUEST: {playlist_id} ===")
     try:
         sp = _get_spotify()
+        print(f"[DEBUG] Spotify connected: {sp.is_connected()}")
         sp.connect()
+        print(f"[DEBUG] Spotify after connect: {sp.is_connected()}")
         tracks, _name = sp._playlist_tracks(playlist_id)
+        print(f"[DEBUG] Playlist '{_name}': got {len(tracks)} tracks")
+        if tracks:
+            print(f"[DEBUG] First track: {tracks[0]}")
         result = []
         for t in tracks:
             result.append({
@@ -521,8 +527,12 @@ def api_playlist_tracks(playlist_id):
                 "duration_ms": t.get("duration_ms", 0),
                 "uri": t.get("id", ""),
             })
+        print(f"[DEBUG] Returning {len(result)} tracks as JSON")
         return jsonify(result)
     except Exception as e:
+        import traceback
+        print(f"[DEBUG] PLAYLIST TRACKS ERROR: {e}")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 

@@ -22,7 +22,23 @@ async function renderPlaylists(params = {}) {
     lucide.createIcons();
     document.getElementById("back-playlists").addEventListener("click", () => renderPlaylists());
 
-    const tracks = await API.get(`/api/playlists/${params.playlist_id}/tracks`);
+    console.log(`[SONGER] Loading playlist tracks: ${params.playlist_id} (${params.playlist_name})`);
+    let tracks;
+    try {
+      tracks = await API.get(`/api/playlists/${params.playlist_id}/tracks`);
+      console.log(`[SONGER] Playlist tracks loaded: ${tracks.length} tracks`, tracks);
+    } catch (err) {
+      console.error(`[SONGER] Playlist tracks FAILED:`, err);
+      document.getElementById("pl-tracks").innerHTML = `<div class="empty-state" style="color:#ef4444"><i data-lucide="alert-circle" width="32" height="32"></i> Failed to load tracks: ${err.message}</div>`;
+      lucide.createIcons();
+      return;
+    }
+    if (!tracks.length) {
+      console.warn(`[SONGER] Playlist returned 0 tracks`);
+      document.getElementById("pl-tracks").innerHTML = `<div class="empty-state"><i data-lucide="music-off" width="32" height="32"></i> No tracks found in this playlist</div>`;
+      lucide.createIcons();
+      return;
+    }
     document.getElementById("pl-title").textContent = params.playlist_name || "Playlist";
     document.getElementById("dl-all").addEventListener("click", async () => {
       for (const t of tracks) {
@@ -113,7 +129,9 @@ async function renderPlaylists(params = {}) {
   lucide.createIcons();
 
   try {
+    console.log(`[SONGER] Loading playlists...`);
     const playlists = await API.get("/api/playlists");
+    console.log(`[SONGER] Playlists loaded: ${playlists.length}`, playlists.map(p => ({id: p.id, name: p.name, tracks: p.tracks_total, cover: !!p.cover})));
 
     function renderGrid(list) {
       document.getElementById("pl-grid").innerHTML = `<div class="playlist-grid">${list.map(p => `
