@@ -14,55 +14,104 @@ Download música do Spotify via YouTube e Soulseek. Corre no browser — sem ins
 
 ---
 
-## Instalação
+## Instalação (Windows — passo a passo)
 
-**Passo 1 — Descarrega o projecto**
+---
 
-Faz download do ZIP no GitHub (botão verde "Code" → "Download ZIP") e extrai, ou clona via git:
+### Passo 1 — Instala o Python
+
+Vai a [python.org/downloads](https://www.python.org/downloads) e descarrega o Python 3.11 ou 3.12.
+
+> ⚠️ Durante a instalação, **marca obrigatoriamente a caixa "Add Python to PATH"** antes de clicar Install. Se não fizeres isto, os comandos seguintes não vão funcionar.
+
+Para verificar que ficou bem instalado, abre o PowerShell e corre:
 ```powershell
-git clone https://github.com/whyviidee/SONGERAPP.git
-cd SONGERAPP
+python --version
 ```
+Deverá mostrar algo como `Python 3.12.x`.
 
-**Passo 2 — Abre o PowerShell na pasta do projecto**
+---
 
-Clica com o botão direito dentro da pasta `SONGERAPP` → **"Open in Terminal"** (ou **"Abrir no Terminal"**).
+### Passo 2 — Descarrega o SONGER
 
-**Passo 3 — (Só Windows) Permite executar scripts**
+No GitHub, clica no botão verde **"Code"** → **"Download ZIP"**.
+Extrai o ZIP para uma pasta à tua escolha (ex: `C:\Users\Tu\Downloads\SONGERAPP`).
+
+---
+
+### Passo 3 — Abre o PowerShell na pasta do projecto
+
+Abre a pasta `SONGERAPP` no Explorador de Ficheiros.
+Clica com o botão direito dentro da pasta (em espaço vazio) → **"Open in Terminal"** ou **"Abrir no Terminal"**.
+
+O PowerShell deverá abrir já dentro da pasta correcta. Confirma com:
+```powershell
+ls
+```
+Deves ver ficheiros como `server.py`, `requirements.txt`, etc.
+
+---
+
+### Passo 4 — Permite executar scripts (só Windows, uma vez)
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
-Confirma com **Y** quando perguntar.
+Quando perguntar, escreve **Y** e pressiona Enter.
 
-**Passo 4 — Cria e activa o ambiente virtual**
+---
+
+### Passo 5 — Cria o ambiente virtual
 
 ```powershell
 python -m venv venv
+```
+
+Aguarda terminar (cria uma pasta `venv` no projecto).
+
+---
+
+### Passo 6 — Activa o ambiente virtual
+
+```powershell
 venv\Scripts\activate
 ```
 
-> macOS / Linux: `source venv/bin/activate`
+O terminal deverá mostrar `(venv)` no início da linha — isso confirma que está activo.
+**Tens de fazer isto sempre que abrires um novo terminal para correr o SONGER.**
 
-Quando activo, o terminal mostra `(venv)` no início da linha.
+---
 
-**Passo 5 — Instala as dependências**
+### Passo 7 — Instala as dependências
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-Demora 1-2 minutos na primeira vez.
+Demora 1-2 minutos na primeira vez. No final deverá mostrar `Successfully installed ...`.
+**Só precisas de fazer este passo uma vez.**
 
 ---
 
-## Iniciar
+### Passo 8 — Inicia o SONGER
 
-```bash
+```powershell
 python server.py
 ```
 
 Abre o browser em **http://localhost:8888**
+
+> Para parar o servidor: `Ctrl + C` no terminal.
+
+---
+
+### Da próxima vez
+
+Só precisas de:
+```powershell
+venv\Scripts\activate
+python server.py
+```
 
 ---
 
