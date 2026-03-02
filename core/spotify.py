@@ -109,7 +109,7 @@ class SpotifyClient:
     # Search por texto
     # ------------------------------------------------------------------
 
-    def search(self, query: str, limit: int = 20) -> dict:
+    def search(self, query: str, limit: int = 50) -> dict:
         """
         Pesquisa no Spotify por texto.
         Retorna: {"tracks": [...], "albums": [...], "artists": [...]}
@@ -118,7 +118,7 @@ class SpotifyClient:
             raise RuntimeError("Spotify não conectado")
 
         log.info(f"Search: '{query}' (limit={limit})")
-        per_type_limit = min(limit, 10)  # max 10 por tipo em multi-type search (Spotify API)
+        per_type_limit = min(limit, 50)  # Spotify API suporta até 50 por tipo
         results = self._get_public_sp().search(q=query, limit=per_type_limit, type="track,album,artist")
 
         tracks = []
@@ -186,6 +186,29 @@ class SpotifyClient:
 
         log.info(f"Playlists carregadas: {len(playlists)}")
         return playlists
+
+    def get_liked_songs(self, limit: int = 500) -> list[dict]:
+        """Retorna as músicas guardadas (Liked Songs) do user."""
+        if not self._sp:
+            raise RuntimeError("Spotify não conectado")
+        log.info("A carregar liked songs...")
+        tracks = []
+        results = self._sp.current_user_saved_tracks(limit=50)
+        while results and len(tracks) < limit:
+            for item in (results.get("items") or []):
+                t = item.get("track")
+                if not t or not t.get("id"):
+                    continue
+                try:
+                    tracks.append(self._parse_track(t))
+                except Exception:
+                    continue
+            if results.get("next") and len(tracks) < limit:
+                results = self._sp.next(results)
+            else:
+                break
+        log.info(f"Liked songs carregadas: {len(tracks)}")
+        return tracks
 
     def get_artist_albums(self, artist_id: str) -> list[dict]:
         """Retorna albums e singles de um artista, sem duplicados."""
