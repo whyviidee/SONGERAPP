@@ -109,7 +109,7 @@ class SpotifyClient:
     # Search por texto
     # ------------------------------------------------------------------
 
-    def search(self, query: str, limit: int = 50) -> dict:
+    def search(self, query: str, limit: int = 10) -> dict:
         """
         Pesquisa no Spotify por texto.
         Retorna: {"tracks": [...], "albums": [...], "artists": [...]}
@@ -119,14 +119,15 @@ class SpotifyClient:
 
         sp_instance = self._sp if self._sp else self._get_public_sp()
 
-        # Tentar com limites decrescentes — apps novas do Spotify podem ter limites menores
-        for try_limit in [min(limit, 50), 20, 10, 5]:
+        # Spotify API search limit: 0-10 (Dev Mode), default 5
+        safe_limit = min(limit, 10)
+        for try_limit in [safe_limit, 5, 3]:
             try:
                 log.info(f"Search: '{query}' (limit={try_limit})")
                 results = sp_instance.search(q=query, limit=try_limit, type="track")
                 break
             except Exception as e:
-                if "Invalid limit" in str(e) and try_limit > 5:
+                if "Invalid limit" in str(e) and try_limit > 3:
                     log.warning(f"Search falhou com limit={try_limit}, a tentar menor...")
                     continue
                 raise

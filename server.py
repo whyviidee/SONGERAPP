@@ -278,7 +278,7 @@ def api_search():
                     "external_url": "",
                 })
         else:
-            results = sp.search(q, limit=30)
+            results = sp.search(q, limit=10)
             tracks = []
             for t in results.get("tracks", []):
                 tracks.append({
