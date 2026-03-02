@@ -269,24 +269,57 @@ class SpotifyClient:
         raise ValueError(f"Tipo desconhecido: {kind}")
 
     def _playlist_tracks(self, playlist_id: str):
-        # Buscar nome da playlist
-        try:
-            data = self._sp.playlist(playlist_id, fields="name")
-            name = data.get("name", "Playlist")
-        except Exception:
-            name = "Playlist"
-
         tracks = []
-        # Tentar playlist_items sem episode (Dev Mode pode bloquear episodes)
+        name = "Playlist"
+
+        # Estratégia 1: playlist() completo — endpoint /playlists/{id} funciona em Dev Mode
         for attempt, kwargs in enumerate([
-            {"limit": 10, "additional_types": ("track",), "market": "from_token"},
-            {"limit": 10, "additional_types": ("track",)},
-            {"limit": 5},
+            {"additional_types": ("track",)},
+            {"additional_types": ("track",), "market": "from_token"},
+            {},
         ]):
             try:
-                log.info(f"Playlist '{name}': tentativa {attempt+1} com {kwargs}")
-                results = self._sp.playlist_items(playlist_id, **kwargs)
-                log.info(f"Playlist '{name}': total={results.get('total', '?')}, items={len(results.get('items') or [])}")
+                log.info(f"[PLAYLIST] tentativa {attempt+1}: playlist({playlist_id}) com {kwargs}")
+                data = self._sp.playlist(playlist_id, **kwargs)
+                name = data.get("name", "Playlist")
+                results = data.get("tracks") or {}
+                total = results.get("total", "?")
+                items_count = len(results.get("items") or [])
+                log.info(f"[PLAYLIST] '{name}': total={total}, items_inline={items_count}, keys={list(results.keys())}")
+                if items_count > 0:
+                    while True:
+                        for item in (results.get("items") or []):
+                            t = item.get("track")
+                            if not t or not t.get("id"):
+                                continue
+                            if t.get("type") != "track":
+                                continue
+                            try:
+                                tracks.append(self._parse_track(t))
+                            except Exception:
+                                continue
+                        if results.get("next"):
+                            try:
+                                results = self._sp.next(results)
+                            except Exception as e:
+                                log.warning(f"[PLAYLIST] paginação falhou: {e}")
+                                break
+                        else:
+                            break
+                    break
+                else:
+                    log.info(f"[PLAYLIST] 0 items inline, a tentar próxima...")
+                    continue
+            except Exception as e:
+                log.warning(f"[PLAYLIST] playlist() tentativa {attempt+1} falhou: {e}")
+                continue
+
+        # Estratégia 2: playlist_items() — fallback caso playlist() não devolva tracks
+        if not tracks:
+            log.info(f"[PLAYLIST] '{name}': fallback playlist_items()...")
+            try:
+                results = self._sp.playlist_items(playlist_id, limit=10, additional_types=("track",))
+                log.info(f"[PLAYLIST] playlist_items: total={results.get('total', '?')}, items={len(results.get('items') or [])}")
                 while results:
                     for item in (results.get("items") or []):
                         t = item.get("track")
@@ -301,17 +334,14 @@ class SpotifyClient:
                     if results.get("next"):
                         try:
                             results = self._sp.next(results)
-                        except Exception as e:
-                            log.warning(f"Playlist paginação falhou: {e}")
+                        except Exception:
                             break
                     else:
                         break
-                break  # sucesso, sair do loop
             except Exception as e:
-                log.warning(f"playlist_items tentativa {attempt+1} falhou: {e}")
-                tracks = []
-                continue
-        log.info(f"Playlist '{name}': {len(tracks)} tracks carregadas")
+                log.warning(f"[PLAYLIST] playlist_items falhou (esperado em Dev Mode): {e}")
+
+        log.info(f"[PLAYLIST] '{name}': {len(tracks)} tracks FINAL")
         return tracks, name
 
     def _album_tracks(self, album_id: str):
