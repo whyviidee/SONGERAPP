@@ -48,6 +48,17 @@ document.getElementById("browse-dl-path").addEventListener("click", async () => 
   } catch (e) {}
 });
 
+document.getElementById("disconnect-spotify").addEventListener("click", async () => {
+  if (!confirm("Disconnect Spotify? You'll need to re-authenticate.")) return;
+  try {
+    await fetch("/disconnect", { method: "POST" });
+    toast("Spotify disconnected. Redirecting...", "info");
+    setTimeout(() => { window.location.href = "/"; }, 1000);
+  } catch (e) {
+    toast("Failed to disconnect", "error");
+  }
+});
+
 async function openSettings() {
   try {
     const cfg = await API.get("/api/config");
