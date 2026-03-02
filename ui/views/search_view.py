@@ -482,6 +482,7 @@ class SearchView(QWidget):
         self._current_url = url
         self._status.setText("A carregar...")
         self._results_scroll.hide()
+        self.layout().setStretchFactor(self._results_scroll, 0)
         self._track_list.show()
 
         self._loading_bar.show()
@@ -495,6 +496,7 @@ class SearchView(QWidget):
         self._header.hide()
         self._track_list.clear()
         self._results_scroll.show()
+        self.layout().setStretchFactor(self._results_scroll, 1)
 
         self._loading_bar.show()
         self._worker = SearchWorker(query, self._config)
@@ -515,9 +517,10 @@ class SearchView(QWidget):
         self._results_scroll.hide()
 
         if url_type == "artist" and albums:
+            from PyQt6.QtCore import QTimer
             self._track_list.setMaximumHeight(260)
-            self._populate_albums(albums)
             self._albums_section.show()
+            QTimer.singleShot(0, lambda: self._populate_albums(albums))
         else:
             self._track_list.setMaximumHeight(16777215)
             self._albums_section.hide()
@@ -548,6 +551,15 @@ class SearchView(QWidget):
             self._albums_list_layout.insertWidget(self._albums_list_layout.count() - 1, card)
 
     def _on_search_results(self, results: dict):
+        from PyQt6.QtCore import QTimer
+        self._loading_bar.hide()
+        self._search_btn.setEnabled(True)
+        self._search_btn.setText("Pesquisar")
+        # Deferir criação de widgets para o próximo tick — evita crash Qt6 macOS ARM64
+        # (QPalette::resolve crashava quando QNetworkAccessManager threads estavam activos)
+        QTimer.singleShot(0, lambda: self._fill_search_results(results))
+
+    def _fill_search_results(self, results: dict):
         # Limpar resultados anteriores
         while self._results_layout.count():
             item = self._results_layout.takeAt(0)
@@ -590,9 +602,6 @@ class SearchView(QWidget):
             self._track_list.show()
 
         self._results_layout.addStretch()
-        self._loading_bar.hide()
-        self._search_btn.setEnabled(True)
-        self._search_btn.setText("Pesquisar")
         total = len(tracks) + len(albums) + len(artists)
         self._status.setText(f"{total} resultados encontrados.")
 

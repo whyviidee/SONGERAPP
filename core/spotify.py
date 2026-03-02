@@ -214,7 +214,7 @@ class SpotifyClient:
         if not self._sp:
             raise RuntimeError("Spotify não conectado")
         artist = self._sp.artist(artist_id)
-        results = self._sp.artist_top_tracks(artist_id, country="from_token")
+        results = self._sp._get(f"artists/{artist_id}/top-tracks")
         tracks = [self._parse_track(t) for t in (results.get("tracks") or [])]
         return tracks, artist.get("name", "")
 
