@@ -269,39 +269,48 @@ class SpotifyClient:
         raise ValueError(f"Tipo desconhecido: {kind}")
 
     def _playlist_tracks(self, playlist_id: str):
-        # Buscar nome da playlist (fields limita dados para Dev Mode)
+        # Buscar nome da playlist
         try:
             data = self._sp.playlist(playlist_id, fields="name")
             name = data.get("name", "Playlist")
         except Exception:
             name = "Playlist"
 
-        # Usar playlist_items() directamente — playlist() não devolve tracks em Dev Mode
         tracks = []
-        try:
-            results = self._sp.playlist_items(playlist_id, limit=10)
-            log.info(f"Playlist '{name}': total={results.get('total', '?')}, items={len(results.get('items') or [])}")
-            while results:
-                for item in (results.get("items") or []):
-                    t = item.get("track")
-                    if not t or not t.get("id"):
-                        continue
-                    if t.get("type") != "track":
-                        continue
-                    try:
-                        tracks.append(self._parse_track(t))
-                    except Exception:
-                        continue
-                if results.get("next"):
-                    try:
-                        results = self._sp.next(results)
-                    except Exception as e:
-                        log.warning(f"Playlist paginação falhou: {e}")
+        # Tentar playlist_items sem episode (Dev Mode pode bloquear episodes)
+        for attempt, kwargs in enumerate([
+            {"limit": 10, "additional_types": ("track",), "market": "from_token"},
+            {"limit": 10, "additional_types": ("track",)},
+            {"limit": 5},
+        ]):
+            try:
+                log.info(f"Playlist '{name}': tentativa {attempt+1} com {kwargs}")
+                results = self._sp.playlist_items(playlist_id, **kwargs)
+                log.info(f"Playlist '{name}': total={results.get('total', '?')}, items={len(results.get('items') or [])}")
+                while results:
+                    for item in (results.get("items") or []):
+                        t = item.get("track")
+                        if not t or not t.get("id"):
+                            continue
+                        if t.get("type") != "track":
+                            continue
+                        try:
+                            tracks.append(self._parse_track(t))
+                        except Exception:
+                            continue
+                    if results.get("next"):
+                        try:
+                            results = self._sp.next(results)
+                        except Exception as e:
+                            log.warning(f"Playlist paginação falhou: {e}")
+                            break
+                    else:
                         break
-                else:
-                    break
-        except Exception as e:
-            log.warning(f"playlist_items falhou: {e}")
+                break  # sucesso, sair do loop
+            except Exception as e:
+                log.warning(f"playlist_items tentativa {attempt+1} falhou: {e}")
+                tracks = []
+                continue
         log.info(f"Playlist '{name}': {len(tracks)} tracks carregadas")
         return tracks, name
 
