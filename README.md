@@ -126,9 +126,8 @@ Para os obter:
 1. Vai a [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) e faz login com a tua conta Spotify
 2. Clica **"Create app"**
 3. Preenche nome e descrição (qualquer coisa serve)
-4. Em **"Redirect URIs"** adiciona estas 3 URIs (uma de cada vez, clica **Add** depois de cada uma):
+4. Em **"Redirect URIs"** adiciona estas 2 URIs (uma de cada vez, clica **Add** depois de cada uma):
    - `https://open.spotify.com`
-   - `http://127.0.0.1:5173/callback`
    - `http://127.0.0.1:8888/callback`
 
    > ⚠️ Pode aparecer um aviso **"This redirect URI is not secure"** — é só um aviso, ignora e clica **Add** na mesma.

@@ -48,6 +48,25 @@ _sse_queues: list = []
 # ZIP download jobs
 _zip_jobs: dict = {}
 
+# Persistent mapping of Spotify track ID → local file path
+_DOWNLOADED_MAP_PATH = Path.home() / ".songer" / "downloaded_map.json"
+
+def _load_downloaded_map() -> dict:
+    if _DOWNLOADED_MAP_PATH.exists():
+        try:
+            with open(_DOWNLOADED_MAP_PATH, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def _save_downloaded_entry(track_id: str, file_path: str):
+    m = _load_downloaded_map()
+    m[track_id] = file_path
+    _DOWNLOADED_MAP_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(_DOWNLOADED_MAP_PATH, "w", encoding="utf-8") as f:
+        json.dump(m, f, ensure_ascii=False)
+
 
 def _load_config() -> dict:
     if CONFIG_PATH.exists():
@@ -218,20 +237,75 @@ def api_stats():
 
     total_mb = sum(f.get("size_mb", 0) for f in files)
 
-    history = DownloadHistory()
-    playlists_count = len(set(
-        e.get("url", "") for e in history.get_all()
-        if "playlist" in e.get("url", "")
-    ))
+    playlists_count = 0
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        playlists_count = len(sp.get_my_playlists())
+    except Exception:
+        pass
 
     active = len([t for t in _download_queue.values() if t.get("status") == "downloading"]) if "_download_queue" in globals() else 0
+
+    # Top artists by file count
+    artist_counts = {}
+    for f in files:
+        a = f.get("artist", "").strip()
+        if a:
+            artist_counts[a] = artist_counts.get(a, 0) + 1
+    top_artists_raw = sorted(artist_counts.items(), key=lambda x: -x[1])[:8]
+
+    # Enrich top artists with Spotify images
+    top_artists = []
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        for name, count in top_artists_raw:
+            cover = ""
+            try:
+                results = sp.search(name, limit=1)
+                artists = results.get("artists", [])
+                if artists:
+                    cover = artists[0].get("cover_url", "")
+            except Exception:
+                pass
+            top_artists.append({"name": name, "count": count, "cover": cover})
+    except Exception:
+        top_artists = [{"name": a, "count": c, "cover": ""} for a, c in top_artists_raw]
+
+    pending = len([t for t in _download_queue.values() if t.get("status") in ("pending", "downloading")])
 
     return jsonify({
         "tracks": len(files),
         "downloading": active,
+        "pending": pending,
         "playlists": playlists_count,
         "storage_gb": round(total_mb / 1024, 1),
+        "top_artists": top_artists,
     })
+
+
+@app.route("/api/recommendations")
+def api_recommendations():
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        # Use recent liked songs as seeds
+        liked = sp.get_liked_songs(limit=5)
+        seed_tracks = [t["id"] for t in liked[:5] if t.get("id")]
+        if not seed_tracks:
+            return jsonify([])
+        recs = sp.get_recommendations(seed_tracks=seed_tracks, limit=10)
+        tracks = []
+        for t in recs:
+            tracks.append({
+                "id": t.get("id", ""), "name": t.get("title", ""),
+                "artist": t.get("artist", ""), "album": t.get("album", ""),
+                "cover": t.get("cover_url", ""), "duration_ms": t.get("duration_ms", 0),
+            })
+        return jsonify(tracks)
+    except Exception as e:
+        return jsonify([])
 
 
 # ------------------------------------------------------------------
@@ -314,6 +388,111 @@ def api_search():
                 })
             return jsonify({"tracks": tracks, "albums": albums, "artists": artists})
         return jsonify({"tracks": tracks, "albums": [], "artists": []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/artist/<artist_id>")
+def api_artist(artist_id):
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        pub = sp._get_public_sp()
+        artist_raw = pub.artist(artist_id)
+        images = artist_raw.get("images") or []
+        artist_info = {
+            "id": artist_raw["id"],
+            "name": artist_raw.get("name", ""),
+            "cover": images[0]["url"] if images else "",
+            "genres": (artist_raw.get("genres") or [])[:5],
+            "followers": (artist_raw.get("followers") or {}).get("total", 0),
+        }
+        top_tracks_raw, _ = sp.get_artist_top_tracks(artist_id)
+        top_tracks = []
+        for t in top_tracks_raw:
+            top_tracks.append({
+                "id": t.get("id", ""), "name": t.get("title", ""),
+                "artist": t.get("artist", ""), "album": t.get("album", ""),
+                "cover": t.get("cover_url", ""), "duration_ms": t.get("duration_ms", 0),
+                "uri": "", "external_url": "",
+            })
+        albums = []
+        for a in sp.get_artist_albums(artist_id):
+            albums.append({
+                "id": a.get("id", ""), "name": a.get("name", ""),
+                "year": a.get("year", ""), "cover": a.get("cover_url", ""),
+                "total_tracks": a.get("total_tracks", 0),
+                "album_type": a.get("album_type", "album"),
+            })
+        return jsonify({"artist": artist_info, "top_tracks": top_tracks, "albums": albums})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/album/<album_id>")
+def api_album(album_id):
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        data = sp.get_album(album_id)
+        album_info = data["album"]
+        tracks = []
+        for t in data["tracks"]:
+            tracks.append({
+                "id": t.get("id", ""), "name": t.get("title", ""),
+                "artist": t.get("artist", ""), "album": t.get("album", ""),
+                "cover": t.get("cover_url", ""), "duration_ms": t.get("duration_ms", 0),
+                "uri": "", "external_url": "",
+            })
+        return jsonify({
+            "album": {
+                "id": album_info["id"], "name": album_info["name"],
+                "artist": album_info["artist"], "artist_id": album_info.get("artist_id", ""),
+                "cover": album_info["cover_url"], "year": album_info["year"],
+                "total_tracks": album_info["total_tracks"],
+            },
+            "tracks": tracks,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/search/<search_type>")
+def api_search_type(search_type):
+    type_map = {"tracks": "track", "albums": "album", "artists": "artist"}
+    sp_type = type_map.get(search_type)
+    if not sp_type:
+        return jsonify({"error": "Invalid type. Use: tracks, albums, artists"}), 400
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "q required"}), 400
+    offset = int(request.args.get("offset", 0))
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        data = sp.search_type(q, sp_type, limit=10, offset=offset)
+        # Normalize field names for frontend
+        items = []
+        for item in data["items"]:
+            if sp_type == "track":
+                items.append({
+                    "id": item.get("id", ""), "name": item.get("title", ""),
+                    "artist": item.get("artist", ""), "album": item.get("album", ""),
+                    "cover": item.get("cover_url", ""), "duration_ms": item.get("duration_ms", 0),
+                    "uri": "", "external_url": "",
+                })
+            elif sp_type == "album":
+                items.append({
+                    "id": item.get("id", ""), "name": item.get("name", ""),
+                    "artist": item.get("artist", ""), "year": item.get("year", ""),
+                    "cover": item.get("cover_url", ""), "total_tracks": item.get("total_tracks", 0),
+                })
+            elif sp_type == "artist":
+                items.append({
+                    "id": item.get("id", ""), "name": item.get("name", ""),
+                    "cover": item.get("cover_url", ""), "genres": item.get("genres", []),
+                })
+        return jsonify({"items": items, "total": data["total"], "offset": data["offset"], "has_more": data["has_more"]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -420,6 +599,8 @@ def _run_download(job_id: str, track: dict):
                     _download_queue[job_id]["path"] = result.path or ""
                     if result.success:
                         try:
+                            if track.get("id") and result.path:
+                                _save_downloaded_entry(track["id"], result.path)
                             DownloadHistory().add(
                                 url=t.get("uri", ""),
                                 name=f"{t.get('artist', '')} – {t.get('title', '')}",
@@ -444,6 +625,18 @@ def _run_download(job_id: str, track: dict):
 def api_queue():
     with _queue_lock:
         return jsonify(list(_download_queue.values()))
+
+
+@app.route("/api/downloaded-ids")
+def api_downloaded_ids():
+    # Start with persistent map (survives restarts)
+    result = _load_downloaded_map()
+    # Merge in-memory queue (current session downloads)
+    with _queue_lock:
+        for j in _download_queue.values():
+            if j.get("status") == "done" and j.get("track_id") and j.get("path"):
+                result[j["track_id"]] = j["path"]
+    return jsonify(result)
 
 
 @app.route("/api/queue/<job_id>", methods=["DELETE"])
@@ -572,7 +765,32 @@ def api_library():
 @app.route("/api/history")
 def api_history():
     h = DownloadHistory()
-    return jsonify(h.get_all())
+    entries = h.get_all()
+    # Try to fill missing covers via Spotify search
+    needs_save = False
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        for entry in entries:
+            if entry.get("cover"):
+                continue
+            name = entry.get("name", "")
+            if not name:
+                continue
+            try:
+                results = sp.search(name.replace(" – ", " "), limit=1)
+                tracks = results.get("tracks", [])
+                if tracks and tracks[0].get("cover_url"):
+                    entry["cover"] = tracks[0]["cover_url"]
+                    needs_save = True
+            except Exception:
+                break  # stop trying if Spotify fails
+    except Exception:
+        pass
+    if needs_save:
+        h._entries = entries
+        h._save()
+    return jsonify(entries)
 
 
 @app.route("/api/history", methods=["DELETE"])

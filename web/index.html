@@ -215,9 +215,7 @@
 
     <h2>Configurar Spotify</h2>
     <p class="desc">
-      Precisas de criar uma app em
-      <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a>
-      e adicionar <strong>http://localhost:8888/callback</strong> como Redirect URI.
+      Segue os passos abaixo para ligar o SONGER à tua conta Spotify.
     </p>
 
     <form action="/setup" method="post">
@@ -242,11 +240,17 @@
     <hr class="divider">
 
     <div class="steps">
-      <strong>Como criar a app Spotify:</strong><br>
-      1. Vai a developer.spotify.com/dashboard<br>
-      2. Clica "Create app"<br>
-      3. Em "Redirect URIs" adiciona: <strong>http://localhost:8888/callback</strong><br>
-      4. Copia o Client ID e Client Secret para cima
+      <strong>Como obter as credenciais Spotify:</strong><br><br>
+      <strong>1.</strong> Vai a <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1db954">developer.spotify.com/dashboard</a> e faz login<br>
+      <strong>2.</strong> Clica em <strong style="color:#aaa">"Create app"</strong><br>
+      <strong>3.</strong> Preenche o nome e descrição (qualquer coisa serve)<br>
+      <strong>4.</strong> Em <strong style="color:#aaa">"Redirect URIs"</strong> adiciona estas 2 URIs:<br>
+      &nbsp;&nbsp;&nbsp;<strong style="color:#1db954">https://open.spotify.com</strong><br>
+      &nbsp;&nbsp;&nbsp;<strong style="color:#1db954">http://127.0.0.1:8888/callback</strong><br>
+      <strong>5.</strong> Selecciona <strong style="color:#aaa">"Web API"</strong> em APIs used e guarda<br>
+      <strong>6.</strong> Vai ao tab <strong style="color:#aaa">"User Management"</strong> e adiciona o teu email Spotify<br>
+      <strong>7.</strong> Abre as Settings da app → copia o <strong style="color:#aaa">Client ID</strong> e <strong style="color:#aaa">Client Secret</strong><br>
+      <strong>8.</strong> Cola os valores acima e clica <strong style="color:#aaa">"Ligar ao Spotify"</strong>
     </div>
 
   </div>

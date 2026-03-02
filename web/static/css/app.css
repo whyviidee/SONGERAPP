@@ -212,6 +212,22 @@ body {
 .stat-value.accent { color: var(--accent); }
 .stat-label { font-size: 11px; font-weight: 500; color: var(--text-2); }
 
+/* ── Quick actions ── */
+.quick-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.quick-action-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 16px;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.quick-action-btn:hover {
+  background: var(--surface-2); color: var(--text); border-color: var(--accent);
+}
+.quick-action-btn i { color: var(--accent); }
+
 /* ── Section header ── */
 .section-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -444,6 +460,47 @@ input[type=range]::-webkit-slider-thumb {
 .album-card-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .album-card-meta { font-size: 10px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ── Detail views (artist/album) ── */
+.detail-back {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500;
+  color: var(--text-2); cursor: pointer; padding: 8px 14px; margin-bottom: 8px;
+  width: fit-content; border-radius: 8px; transition: background 0.1s;
+}
+.detail-back:hover { background: var(--surface); color: var(--text); }
+
+.artist-header {
+  display: flex; align-items: center; gap: 24px; padding: 16px 14px 24px;
+}
+.artist-header-img {
+  width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+  background: var(--surface-2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.artist-header-img--empty { color: var(--text-3); }
+.artist-header-info { min-width: 0; }
+.artist-header-type { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.artist-header-name { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1.1; margin-bottom: 6px; }
+.artist-header-meta { font-size: 13px; color: var(--text-2); }
+
+.album-header {
+  display: flex; align-items: flex-end; gap: 24px; padding: 16px 14px 24px;
+}
+.album-header-cover {
+  width: 160px; height: 160px; border-radius: 8px; object-fit: cover;
+  background: var(--surface-2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.album-header-cover--empty { color: var(--text-3); }
+.album-header-info { min-width: 0; }
+.album-header-type { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.album-header-name { font-size: 24px; font-weight: 800; color: var(--text); line-height: 1.1; margin-bottom: 6px; }
+.album-header-meta { font-size: 13px; color: var(--text-2); }
+.album-header-artist { color: var(--text); font-weight: 600; }
+
+.track-number {
+  font-size: 13px; color: var(--text-3); width: 24px; text-align: center; flex-shrink: 0;
+}
+
 /* ── Download queue ── */
 .queue-row {
   display: flex; align-items: center; gap: 14px;
@@ -477,6 +534,26 @@ input[type=range]::-webkit-slider-thumb {
 .loading-spinner {
   display: flex; align-items: center; justify-content: center;
   height: 120px; color: var(--text-3); gap: 10px; font-size: 13px;
+}
+
+.soundwave-loader {
+  display: flex; align-items: center; justify-content: center;
+  height: 200px; gap: 4px;
+}
+.soundwave-loader .bar {
+  width: 4px; border-radius: 2px;
+  background: var(--accent); opacity: 0.7;
+  animation: soundwave 1s ease-in-out infinite;
+}
+.soundwave-loader .bar:nth-child(1) { height: 12px; animation-delay: 0s; }
+.soundwave-loader .bar:nth-child(2) { height: 20px; animation-delay: 0.1s; }
+.soundwave-loader .bar:nth-child(3) { height: 28px; animation-delay: 0.2s; }
+.soundwave-loader .bar:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+.soundwave-loader .bar:nth-child(5) { height: 12px; animation-delay: 0.4s; }
+
+@keyframes soundwave {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.4; }
+  50% { transform: scaleY(1); opacity: 1; }
 }
 
 .empty-state {

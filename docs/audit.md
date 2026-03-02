@@ -1,6 +1,6 @@
 # SONGER — Audit de Features
 
-> Última actualização: 2026-03-02 (v1.2.0)
+> Última actualização: 2026-03-02 (v1.3.0)
 > Estado geral: **Funcional, em maturação**
 
 ---
@@ -46,6 +46,18 @@
 - [x] Botão "Cancelar tudo" no header da view Downloads
 - [x] Windows toast notification quando batch de downloads termina
 
+### Web App v1.3.0
+- [x] Artist detail page — top tracks + discografia + header com imagem
+- [x] Album detail page — tracklist + "Download All" + header com capa
+- [x] Search limit 9 por categoria + "See all" com paginação
+- [x] Download state tracking — Play button para tracks já baixadas
+- [x] Persistent downloaded map (sobrevive restarts)
+- [x] Home: Quick Actions, Top Artists com fotos, Recommendations, Clear recent
+- [x] Soundwave loading animation ao mudar de tab
+- [x] Cover art auto-preenchida no histórico via Spotify search
+- [x] Stats: playlists count real do Spotify
+- [x] `_wireDownloadButtons()` partilhado em todas as views
+
 ### Player + Home (v1.2.0)
 - [x] Home View — dashboard com saudação, quick actions, stats, histórico recente
 - [x] Player embutido — QMediaPlayer local com play/pause, stop, seek, volume, mute
@@ -73,8 +85,8 @@
 - [x] **Estado visual do Soulseek** — badge ● Sl na bottom bar (verde/cinza)
 
 ### Pesquisa — Média Prioridade
-- [ ] **Pesquisa de artistas** — ao colar URL de artista, devia mostrar discografia (top albums/singles) de forma navegável.
-- [ ] **Paginação de resultados** — playlists grandes (>50 tracks) podem não carregar todas.
+- [x] **Pesquisa de artistas** — página de artista com top tracks e discografia navegável
+- [x] **Paginação de resultados** — search paginado com "See all" e "Load more"
 - [x] **Preview de áudio funcional** — QMediaPlayer local a funcionar, play de ficheiros descarregados
 - [x] **Scroll para track a descarregar** — auto-scroll na fila ao adicionar nova track
 
@@ -120,7 +132,7 @@
 
 ## MELHORIAS VISUAIS 🎨
 
-- [ ] **Animações de loading** — spinners/skeletons nas views enquanto carrega dados Spotify.
+- [x] **Animações de loading** — soundwave animation ao mudar de tab enquanto carrega dados.
 - [ ] **Progress bar global** — barra de progresso geral na bottom bar (ex: "3/10 tracks feitas").
 - [ ] **Cores de status** — verde/amarelo/vermelho mais consistentes nas tracks da fila.
 - [ ] **Modo fullscreen** — app não tira partido de ecrãs grandes.

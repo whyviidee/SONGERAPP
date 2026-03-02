@@ -66,13 +66,15 @@ class TrackRow(QFrame):
 
         # Progress
         self._progress = QProgressBar()
-        self._progress.setFixedSize(70, 5)
-        self._progress.setTextVisible(False)
+        self._progress.setFixedSize(80, 14)
+        self._progress.setTextVisible(True)
+        self._progress.setFormat("%p%")
         self._progress.hide()
 
         # Download btn
-        self._dl_btn = QPushButton("↓")
-        self._dl_btn.setFixedSize(30, 30)
+        self._dl_btn = QPushButton("↓  Download")
+        self._dl_btn.setFixedHeight(30)
+        self._dl_btn.setFixedWidth(100)
         self._dl_btn.setObjectName("dl_btn")
         self._dl_btn.setToolTip("Descarregar")
         self._dl_btn.clicked.connect(lambda: self.download_clicked.emit(self.track))
@@ -150,11 +152,11 @@ class TrackRow(QFrame):
 
     def set_failed(self, error: str = ""):
         self._dl_btn.show()
+        self._dl_btn.setText("↓  Tentar again")
         self._progress.hide()
         self._status.setText("✗")
         self._status.setStyleSheet(f"color: {RED}; background: transparent;")
-        if error:
-            self.setToolTip(f"Erro: {error[:300]}")
+        self.setToolTip(f"Erro: {error[:300]}" if error else "Download falhou")
 
     def _on_play(self):
         if self._file_path and Path(self._file_path).exists():
@@ -189,6 +191,7 @@ class TrackRow(QFrame):
 
     def reset(self):
         self._dl_btn.show()
+        self._dl_btn.setText("↓  Download")
         self._play_btn.hide()
         self._del_btn.hide()
         self._file_path = ""

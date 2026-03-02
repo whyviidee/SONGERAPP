@@ -3,6 +3,8 @@
 const VIEWS = {
   home: renderHome,
   search: renderSearch,
+  artist: renderArtist,
+  album: renderAlbum,
   queue: renderQueue,
   playlists: renderPlaylists,
   liked: renderLiked,
@@ -19,7 +21,14 @@ window.APP = {
       el.classList.toggle("active", el.dataset.view === view);
     });
     this.currentView = view;
-    if (VIEWS[view]) VIEWS[view](params);
+    _invalidateDownloadedCache();
+    if (VIEWS[view]) {
+      // Show soundwave loader immediately
+      const content = document.getElementById("content");
+      content.innerHTML = `<div class="soundwave-loader"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>`;
+      // Run view (may be async)
+      Promise.resolve(VIEWS[view](params)).catch(() => {});
+    }
   },
 };
 

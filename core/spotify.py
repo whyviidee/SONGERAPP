@@ -265,6 +265,23 @@ class SpotifyClient:
         tracks = [self._parse_track(t) for t in (results.get("tracks") or [])]
         return tracks, artist.get("name", "")
 
+    def get_recommendations(self, seed_artists: list[str] = None, seed_tracks: list[str] = None, limit: int = 10) -> list[dict]:
+        """Retorna recomendações baseadas em seed artists/tracks."""
+        sp = self._sp or self._get_public_sp()
+        kwargs = {"limit": min(limit, 10)}
+        if seed_artists:
+            kwargs["seed_artists"] = seed_artists[:5]
+        if seed_tracks:
+            kwargs["seed_tracks"] = seed_tracks[:5]
+        if not seed_artists and not seed_tracks:
+            return []
+        try:
+            results = sp.recommendations(**kwargs)
+            return [self._parse_track(t) for t in (results.get("tracks") or [])]
+        except Exception as e:
+            log.warning(f"Recommendations failed: {e}")
+            return []
+
     # ------------------------------------------------------------------
     # Leitura de tracks
     # ------------------------------------------------------------------
@@ -386,6 +403,67 @@ class SpotifyClient:
 
         log.info(f"[PLAYLIST] '{name}': {len(tracks)} tracks FINAL")
         return tracks, name
+
+    def get_album(self, album_id: str) -> dict:
+        """Retorna info do álbum + todas as tracks."""
+        sp = self._sp or self._get_public_sp()
+        album = sp.album(album_id)
+        images = album.get("images") or []
+        alb_artists = [a["name"] for a in (album.get("artists") or [])]
+        album_info = {
+            "id": album["id"],
+            "name": album.get("name", ""),
+            "artist": ", ".join(alb_artists),
+            "artist_id": (album.get("artists") or [{}])[0].get("id", ""),
+            "cover_url": images[0]["url"] if images else "",
+            "year": (album.get("release_date") or "")[:4],
+            "total_tracks": album.get("total_tracks", 0),
+        }
+        tracks = []
+        results = album.get("tracks", {})
+        while True:
+            for t in (results.get("items") or []):
+                tracks.append(self._parse_track(t, album=album))
+            if results.get("next"):
+                results = sp.next(results)
+            else:
+                break
+        return {"album": album_info, "tracks": tracks}
+
+    def search_type(self, query: str, search_type: str, limit: int = 10, offset: int = 0) -> dict:
+        """Search paginado de um só tipo (track, album, artist)."""
+        sp = self._sp or self._get_public_sp()
+        safe_limit = min(limit, 10)
+        results = sp.search(q=query, limit=safe_limit, offset=offset, type=search_type)
+        key = search_type + "s"  # "track" → "tracks"
+        data = results.get(key, {})
+        total = data.get("total", 0)
+        items_raw = data.get("items") or []
+
+        items = []
+        if search_type == "track":
+            items = [self._parse_track(t) for t in items_raw]
+        elif search_type == "album":
+            for a in items_raw:
+                img = a.get("images") or []
+                arts = [ar["name"] for ar in (a.get("artists") or [])]
+                items.append({
+                    "id": a.get("id", ""), "name": a.get("name", ""),
+                    "artist": ", ".join(arts),
+                    "year": (a.get("release_date") or "")[:4],
+                    "cover_url": img[0]["url"] if img else "",
+                    "total_tracks": a.get("total_tracks", 0),
+                })
+        elif search_type == "artist":
+            for ar in items_raw:
+                img = ar.get("images") or []
+                items.append({
+                    "id": ar.get("id", ""), "name": ar.get("name", ""),
+                    "cover_url": img[0]["url"] if img else "",
+                    "genres": (ar.get("genres") or [])[:3],
+                })
+
+        return {"items": items, "total": total, "offset": offset, "has_more": offset + safe_limit < total}
 
     def _album_tracks(self, album_id: str):
         album = self._sp.album(album_id)

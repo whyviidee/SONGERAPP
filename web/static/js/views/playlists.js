@@ -89,7 +89,8 @@ async function renderPlaylists(params = {}) {
       }
     });
 
-    document.getElementById("pl-tracks").innerHTML = `<div class="track-list">${tracks.map(t => `
+    const plTracksEl = document.getElementById("pl-tracks");
+    plTracksEl.innerHTML = `<div class="track-list">${tracks.map(t => `
       <div class="track-row">
         ${t.cover ? `<img class="track-cover" src="${t.cover}" alt="">` : `<div class="track-cover"></div>`}
         <div class="track-info">
@@ -97,21 +98,12 @@ async function renderPlaylists(params = {}) {
           <div class="track-artist">${t.artist} · ${t.album}</div>
         </div>
         <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
-        <button class="btn-download" data-track='${JSON.stringify(t)}'>
+        <button class="btn-download" data-id="${t.id || ""}" data-name="${(t.name || "").replace(/"/g, "&quot;")}" data-artist="${(t.artist || "").replace(/"/g, "&quot;")}" data-album="${(t.album || "").replace(/"/g, "&quot;")}" data-cover="${(t.cover || "").replace(/"/g, "&quot;")}">
           <i data-lucide="download" width="14" height="14"></i> Download
         </button>
       </div>`).join("")}</div>`;
     lucide.createIcons();
-
-    document.querySelectorAll(".btn-download[data-track]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const t = JSON.parse(btn.dataset.track);
-        await API.post("/api/download", t);
-        btn.classList.add("done");
-        btn.innerHTML = `<i data-lucide="check" width="14" height="14"></i> Added`;
-        lucide.createIcons();
-      });
-    });
+    await _wireDownloadButtons(plTracksEl);
     return;
   }
 

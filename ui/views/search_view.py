@@ -650,7 +650,7 @@ class SearchView(QWidget):
 
         if artists:
             self._results_layout.addWidget(_section_label("ARTISTAS", "#e040fb"))
-            for ar in artists[:5]:
+            for ar in artists[:10]:
                 genres = ", ".join(ar.get("genres", []))
                 card = ResultCard(ar["name"], genres or "Artista", ar.get("url", ""),
                                   icon_letter=ar["name"], icon_color="#e040fb",
@@ -661,7 +661,7 @@ class SearchView(QWidget):
 
         if albums:
             self._results_layout.addWidget(_section_label("ALBUMS", "#e8a030"))
-            for a in albums[:5]:
+            for a in albums[:10]:
                 card = ResultCard(a["name"], f"{a['artist']} • {a.get('year', '')}", a.get("url", ""),
                                   icon_letter=a["name"], icon_color="#e8a030",
                                   cover_url=a.get("cover_url", ""), circle=False)

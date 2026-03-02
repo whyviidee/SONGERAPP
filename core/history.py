@@ -17,7 +17,7 @@ class DownloadHistory:
         self._entries: list[dict] = []
         self._load()
 
-    def add(self, url: str, name: str, tracks_count: int, done_count: int, fail_count: int, fmt: str):
+    def add(self, url: str, name: str, tracks_count: int, done_count: int, fail_count: int, fmt: str, cover: str = ""):
         entry = {
             "date": datetime.now().isoformat(timespec="seconds"),
             "url": url,
@@ -26,6 +26,7 @@ class DownloadHistory:
             "done_count": done_count,
             "fail_count": fail_count,
             "format": fmt,
+            "cover": cover,
         }
         self._entries.insert(0, entry)
         if len(self._entries) > MAX_ENTRIES:

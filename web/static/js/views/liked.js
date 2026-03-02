@@ -72,7 +72,7 @@ async function _loadLiked() {
   }
 }
 
-function _renderLikedList(tracks) {
+async function _renderLikedList(tracks) {
   const list = document.getElementById("liked-list");
   if (!list) return;
 
@@ -81,7 +81,7 @@ function _renderLikedList(tracks) {
     return;
   }
 
-  list.innerHTML = `<div class="track-list">${tracks.map((t, i) => `
+  list.innerHTML = `<div class="track-list">${tracks.map(t => `
     <div class="track-row">
       ${t.cover
         ? `<img class="track-cover" src="${_esc(t.cover)}" alt="" onerror="this.style.opacity='0'">`
@@ -92,30 +92,15 @@ function _renderLikedList(tracks) {
         <div class="track-artist">${_esc(t.artist)}${t.album ? ` · ${_esc(t.album)}` : ""}</div>
       </div>
       <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
-      <button class="btn-download" data-track='${JSON.stringify(t).replace(/'/g, "&#39;")}'>
+      <button class="btn-download" data-id="${_esc(t.id)}" data-name="${_esc(t.name)}" data-artist="${_esc(t.artist)}" data-album="${_esc(t.album || "")}" data-cover="${_esc(t.cover || "")}">
         <i data-lucide="download" width="14" height="14"></i> Download
       </button>
     </div>`).join("")}</div>`;
 
   lucide.createIcons();
-
-  list.querySelectorAll(".btn-download[data-track]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const t = JSON.parse(btn.dataset.track);
-      await API.post("/api/download", t);
-      btn.classList.add("done");
-      btn.innerHTML = `<i data-lucide="check" width="14" height="14"></i> Added`;
-      lucide.createIcons();
-    });
-  });
+  await _wireDownloadButtons(list);
 }
 
 function _esc(s) {
   return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
-
-function fmtDuration(ms) {
-  if (!ms) return "—";
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
