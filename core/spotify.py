@@ -121,10 +121,11 @@ class SpotifyClient:
 
         # Spotify API search limit: 0-10 (Dev Mode), default 5
         safe_limit = min(limit, 10)
+        results = {}
         for try_limit in [safe_limit, 5, 3]:
             try:
                 log.info(f"Search: '{query}' (limit={try_limit})")
-                results = sp_instance.search(q=query, limit=try_limit, type="track")
+                results = sp_instance.search(q=query, limit=try_limit, type="track,album,artist")
                 break
             except Exception as e:
                 if "Invalid limit" in str(e) and try_limit > 3:
@@ -136,8 +137,34 @@ class SpotifyClient:
         for t in (results.get("tracks", {}).get("items") or []):
             tracks.append(self._parse_track(t))
 
-        log.info(f"Search results: {len(tracks)} tracks")
-        return {"tracks": tracks, "albums": [], "artists": []}
+        albums = []
+        for a in (results.get("albums", {}).get("items") or []):
+            images = a.get("images") or []
+            artists = [ar["name"] for ar in (a.get("artists") or [])]
+            albums.append({
+                "id": a.get("id", ""),
+                "name": a.get("name", ""),
+                "artist": ", ".join(artists),
+                "year": (a.get("release_date") or "")[:4],
+                "cover_url": images[0]["url"] if images else "",
+                "total_tracks": a.get("total_tracks", 0),
+                "album_type": a.get("album_type", "album"),
+                "url": a.get("external_urls", {}).get("spotify", ""),
+            })
+
+        artists = []
+        for ar in (results.get("artists", {}).get("items") or []):
+            images = ar.get("images") or []
+            artists.append({
+                "id": ar.get("id", ""),
+                "name": ar.get("name", ""),
+                "cover_url": images[0]["url"] if images else "",
+                "genres": (ar.get("genres") or [])[:3],
+                "url": ar.get("external_urls", {}).get("spotify", ""),
+            })
+
+        log.info(f"Search results: {len(tracks)} tracks, {len(albums)} albums, {len(artists)} artists")
+        return {"tracks": tracks, "albums": albums, "artists": artists}
 
     # ------------------------------------------------------------------
     # Minhas Playlists

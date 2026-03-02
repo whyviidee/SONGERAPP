@@ -291,7 +291,29 @@ def api_search():
                     "uri": "",
                     "external_url": "",
                 })
-        return jsonify(tracks)
+            albums = []
+            for a in results.get("albums", []):
+                albums.append({
+                    "id": a.get("id", ""),
+                    "name": a.get("name", ""),
+                    "artist": a.get("artist", ""),
+                    "year": a.get("year", ""),
+                    "cover": a.get("cover_url", ""),
+                    "total_tracks": a.get("total_tracks", 0),
+                    "album_type": a.get("album_type", "album"),
+                    "url": a.get("url", ""),
+                })
+            artists = []
+            for ar in results.get("artists", []):
+                artists.append({
+                    "id": ar.get("id", ""),
+                    "name": ar.get("name", ""),
+                    "cover": ar.get("cover_url", ""),
+                    "genres": ar.get("genres", []),
+                    "url": ar.get("url", ""),
+                })
+            return jsonify({"tracks": tracks, "albums": albums, "artists": artists})
+        return jsonify({"tracks": tracks, "albums": [], "artists": []})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
