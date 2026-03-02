@@ -7,7 +7,7 @@ Download música do Spotify via YouTube e Soulseek. Corre no browser — sem ins
 ## Requisitos
 
 - **Python 3.11 ou 3.12** — [python.org/downloads](https://www.python.org/downloads)
-- Conta **Spotify** gratuita
+- Conta **Spotify Premium** (obrigatório desde Fevereiro 2026 para apps em Development Mode)
 - Credenciais da **Spotify Developer App** (gratuito, ~5 minutos)
 
 > ⚠️ **Windows:** durante a instalação do Python, marca a caixa **"Add Python to PATH"** antes de clicar Install. Sem isso, o terminal não reconhece o comando `python`.
@@ -134,9 +134,23 @@ Para os obter:
    > ⚠️ Pode aparecer um aviso **"This redirect URI is not secure"** — é só um aviso, ignora e clica **Add** na mesma.
 
 5. Selecciona **"Web API"** em APIs used e guarda
-6. Na página da app → **Settings** → copia o **Client ID** e o **Client Secret**
-7. Cola no SONGER e clica **"Ligar ao Spotify"**
-8. Faz login na janela que abre e autoriza o acesso
+6. Vai ao tab **"User Management"** e adiciona o teu email Spotify (o email com que fazes login no Spotify) → clica **"Add user"**
+
+   > ⚠️ **Obrigatório:** Sem este passo, as playlists e liked songs não vão funcionar. Em Development Mode, todos os utilizadores precisam de estar no allowlist (máximo 5 users).
+
+7. Na página da app → **Settings** → copia o **Client ID** e o **Client Secret**
+8. Cola no SONGER e clica **"Ligar ao Spotify"**
+9. Faz login na janela que abre e autoriza o acesso
+
+### Problemas com playlists ou liked songs?
+
+Se as playlists aparecerem vazias ou com 0 tracks:
+
+1. Confirma que tens **Spotify Premium**
+2. Confirma que o teu email está no **User Management** do Developer Dashboard
+3. Vai a **Settings** no SONGER → clica **"Disconnect Spotify"** → reconecta
+
+Isto força um novo token com as permissões correctas.
 
 ### 2. Pasta de downloads e formato
 
