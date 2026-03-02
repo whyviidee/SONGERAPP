@@ -269,55 +269,39 @@ class SpotifyClient:
         raise ValueError(f"Tipo desconhecido: {kind}")
 
     def _playlist_tracks(self, playlist_id: str):
-        data = self._sp.playlist(playlist_id)
-        name = data["name"]
+        # Buscar nome da playlist (fields limita dados para Dev Mode)
+        try:
+            data = self._sp.playlist(playlist_id, fields="name")
+            name = data.get("name", "Playlist")
+        except Exception:
+            name = "Playlist"
+
+        # Usar playlist_items() directamente — playlist() não devolve tracks em Dev Mode
         tracks = []
-        results = data.get("tracks") or {}
-        log.info(f"Playlist '{name}': total={results.get('total', '?')}, items={len(results.get('items') or [])}")
-        while True:
-            for item in (results.get("items") or []):
-                t = item.get("track")
-                if not t or not t.get("id"):
-                    continue
-                if t.get("type") != "track":
-                    continue
-                try:
-                    tracks.append(self._parse_track(t))
-                except Exception:
-                    continue
-            if results.get("next"):
-                try:
-                    results = self._sp.next(results)
-                except Exception as e:
-                    log.warning(f"Playlist paginação falhou: {e}")
-                    break
-            else:
-                break
-        # Se playlist() devolveu 0 items mas tem total > 0, tentar via playlist_items
-        if not tracks and (data.get("tracks", {}).get("total", 0) > 0):
-            log.info(f"Playlist '{name}': retry via playlist_items...")
-            try:
-                results = self._sp.playlist_items(playlist_id, limit=10)
-                while results:
-                    for item in (results.get("items") or []):
-                        t = item.get("track")
-                        if not t or not t.get("id"):
-                            continue
-                        if t.get("type") != "track":
-                            continue
-                        try:
-                            tracks.append(self._parse_track(t))
-                        except Exception:
-                            continue
-                    if results.get("next"):
-                        try:
-                            results = self._sp.next(results)
-                        except Exception:
-                            break
-                    else:
+        try:
+            results = self._sp.playlist_items(playlist_id, limit=10)
+            log.info(f"Playlist '{name}': total={results.get('total', '?')}, items={len(results.get('items') or [])}")
+            while results:
+                for item in (results.get("items") or []):
+                    t = item.get("track")
+                    if not t or not t.get("id"):
+                        continue
+                    if t.get("type") != "track":
+                        continue
+                    try:
+                        tracks.append(self._parse_track(t))
+                    except Exception:
+                        continue
+                if results.get("next"):
+                    try:
+                        results = self._sp.next(results)
+                    except Exception as e:
+                        log.warning(f"Playlist paginação falhou: {e}")
                         break
-            except Exception as e:
-                log.warning(f"playlist_items falhou: {e}")
+                else:
+                    break
+        except Exception as e:
+            log.warning(f"playlist_items falhou: {e}")
         log.info(f"Playlist '{name}': {len(tracks)} tracks carregadas")
         return tracks, name
 
