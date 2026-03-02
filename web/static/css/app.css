@@ -412,37 +412,37 @@ input[type=range]::-webkit-slider-thumb {
 .btn-see-more:hover { background: var(--surface); }
 .hidden-item { display: none; }
 
-.artist-grid { display: flex; flex-direction: column; gap: 2px; }
+.artist-grid { display: flex; gap: 12px; padding: 0 14px; overflow-x: auto; flex-wrap: wrap; }
 .artist-card {
-  display: flex; align-items: center; gap: 14px;
-  padding: 10px 14px; border-radius: 10px;
-  cursor: pointer; transition: background 0.1s;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px; border-radius: 12px; width: 110px; flex-shrink: 0;
+  cursor: pointer; transition: background 0.1s; text-align: center;
 }
 .artist-card:hover { background: var(--surface); }
 .artist-avatar {
-  width: 48px; height: 48px; border-radius: 50%;
+  width: 64px; height: 64px; border-radius: 50%;
   object-fit: cover; background: var(--surface-2); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.artist-card-info { flex: 1; min-width: 0; }
-.artist-card-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.artist-card-genres { font-size: 11px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.artist-card-info { min-width: 0; width: 100%; }
+.artist-card-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.artist-card-genres { font-size: 10px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.album-grid { display: flex; flex-direction: column; gap: 2px; }
+.album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 0 14px; }
 .album-card {
-  display: flex; align-items: center; gap: 14px;
-  padding: 10px 14px; border-radius: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; border-radius: 10px;
   cursor: pointer; transition: background 0.1s;
 }
 .album-card:hover { background: var(--surface); }
 .album-card-cover {
-  width: 48px; height: 48px; border-radius: 6px;
-  object-fit: cover; background: var(--surface-2); flex-shrink: 0;
+  width: 100%; aspect-ratio: 1; border-radius: 6px;
+  object-fit: cover; background: var(--surface-2);
   display: flex; align-items: center; justify-content: center;
 }
-.album-card-info { flex: 1; min-width: 0; }
-.album-card-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.album-card-meta { font-size: 11px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.album-card-info { min-width: 0; }
+.album-card-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.album-card-meta { font-size: 10px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Download queue ── */
 .queue-row {
