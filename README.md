@@ -16,26 +16,43 @@ Download música do Spotify via YouTube e Soulseek. Corre no browser — sem ins
 
 ## Instalação
 
+**Passo 1 — Descarrega o projecto**
+
+Faz download do ZIP no GitHub (botão verde "Code" → "Download ZIP") e extrai, ou clona via git:
 ```powershell
-# 1. Clona o repositório (ou faz download do ZIP no GitHub)
 git clone https://github.com/whyviidee/SONGERAPP.git
 cd SONGERAPP
+```
 
-# 2. (Só Windows, se der erro no activate) Permite executar scripts
+**Passo 2 — Abre o PowerShell na pasta do projecto**
+
+Clica com o botão direito dentro da pasta `SONGERAPP` → **"Open in Terminal"** (ou **"Abrir no Terminal"**).
+
+**Passo 3 — (Só Windows) Permite executar scripts**
+
+```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+Confirma com **Y** quando perguntar.
 
-# 3. Cria ambiente virtual
+**Passo 4 — Cria e activa o ambiente virtual**
+
+```powershell
 python -m venv venv
-
-# Windows
 venv\Scripts\activate
+```
 
-# macOS / Linux
-source venv/bin/activate
+> macOS / Linux: `source venv/bin/activate`
 
-# 4. Instala dependências
+Quando activo, o terminal mostra `(venv)` no início da linha.
+
+**Passo 5 — Instala as dependências**
+
+```powershell
 pip install -r requirements.txt
 ```
+
+Demora 1-2 minutos na primeira vez.
 
 ---
 
