@@ -117,10 +117,19 @@ class SpotifyClient:
         if not self._sp and not self.client_id:
             raise RuntimeError("Spotify não conectado")
 
-        log.info(f"Search: '{query}' (limit={limit})")
-        per_type_limit = min(limit, 50)
         sp_instance = self._sp if self._sp else self._get_public_sp()
-        results = sp_instance.search(q=query, limit=per_type_limit, type="track")
+
+        # Tentar com limites decrescentes — apps novas do Spotify podem ter limites menores
+        for try_limit in [min(limit, 50), 20, 10, 5]:
+            try:
+                log.info(f"Search: '{query}' (limit={try_limit})")
+                results = sp_instance.search(q=query, limit=try_limit, type="track")
+                break
+            except Exception as e:
+                if "Invalid limit" in str(e) and try_limit > 5:
+                    log.warning(f"Search falhou com limit={try_limit}, a tentar menor...")
+                    continue
+                raise
 
         tracks = []
         for t in (results.get("tracks", {}).get("items") or []):
