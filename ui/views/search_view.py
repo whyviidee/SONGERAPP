@@ -4,8 +4,9 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QScrollArea, QFrame,
 )
-from PyQt6.QtCore import pyqtSignal, Qt, QThread
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import pyqtSignal, Qt, QThread, QUrl
+from PyQt6.QtGui import QFont, QPixmap, QPainter, QPainterPath
+from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 
 from core.config import Config
 from ui.theme import TEXT, TEXT_SEC, TEXT_DIM, BG_MAIN
@@ -98,9 +99,13 @@ class SearchWorker(QThread):
 class ResultCard(QFrame):
     clicked = pyqtSignal(str)  # emite URL
 
-    def __init__(self, title: str, subtitle: str, url: str, icon_letter: str = "", icon_color: str = ACCENT, parent=None):
+    def __init__(self, title: str, subtitle: str, url: str, icon_letter: str = "",
+                 icon_color: str = ACCENT, cover_url: str = "", circle: bool = True, parent=None):
         super().__init__(parent)
         self.url = url
+        self._icon_color = icon_color
+        self._circle = circle
+        self._net = None
         self.setFixedHeight(60)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("result_card")
@@ -120,21 +125,24 @@ class ResultCard(QFrame):
         layout.setContentsMargins(10, 8, 14, 8)
         layout.setSpacing(10)
 
-        # Avatar letra
-        if icon_letter:
-            avatar = QLabel(icon_letter.upper()[:1])
-            avatar.setFixedSize(36, 36)
-            avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            avatar.setStyleSheet(f"""
-                background: {icon_color}22;
-                color: {icon_color};
-                border-radius: 18px;
-                font-size: 14px;
-                font-weight: bold;
-                border: 1px solid {icon_color}44;
-            """)
-            avatar.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-            layout.addWidget(avatar)
+        # Avatar (letra como placeholder, substituído por imagem se cover_url)
+        radius = "18px" if circle else "6px"
+        self._avatar = QLabel(icon_letter.upper()[:1] if icon_letter else "")
+        self._avatar.setFixedSize(36, 36)
+        self._avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._avatar.setStyleSheet(f"""
+            background: {icon_color}22;
+            color: {icon_color};
+            border-radius: {radius};
+            font-size: 14px;
+            font-weight: bold;
+            border: 1px solid {icon_color}44;
+        """)
+        self._avatar.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        layout.addWidget(self._avatar)
+
+        if cover_url:
+            self._load_cover(cover_url)
 
         info = QVBoxLayout()
         info.setSpacing(2)
@@ -156,6 +164,35 @@ class ResultCard(QFrame):
 
         layout.addLayout(info, stretch=1)
         layout.addWidget(arrow)
+
+    def _load_cover(self, url: str):
+        self._net = QNetworkAccessManager(self)
+        reply = self._net.get(QNetworkRequest(QUrl(url)))
+        reply.finished.connect(lambda: self._on_cover(reply))
+
+    def _on_cover(self, reply: QNetworkReply):
+        if reply.error() == QNetworkReply.NetworkError.NoError:
+            data = reply.readAll()
+            px = QPixmap()
+            px.loadFromData(data)
+            if not px.isNull():
+                px = px.scaled(36, 36, Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                               Qt.TransformationMode.SmoothTransformation)
+                if self._circle:
+                    rounded = QPixmap(36, 36)
+                    rounded.fill(Qt.GlobalColor.transparent)
+                    painter = QPainter(rounded)
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    path = QPainterPath()
+                    path.addEllipse(0, 0, 36, 36)
+                    painter.setClipPath(path)
+                    painter.drawPixmap(0, 0, px)
+                    painter.end()
+                    px = rounded
+                self._avatar.setPixmap(px)
+                radius = "18px" if self._circle else "6px"
+                self._avatar.setStyleSheet(f"border-radius: {radius}; border: 1px solid {self._icon_color}44;")
+        reply.deleteLater()
 
     def mousePressEvent(self, _event):
         if self.url:
@@ -247,6 +284,9 @@ class SearchView(QWidget):
         self._current_url: str = ""
         self._current_name: str = ""
         self._worker = None
+        self._history: list[dict] = []       # estado anterior para botão voltar
+        self._last_results: dict = {}         # últimos resultados de texto
+        self._in_text_results: bool = False   # está a mostrar resultados de pesquisa
         self.setObjectName("searchView")
         self.setStyleSheet(f"QWidget#searchView {{ background: {BG_MAIN}; }}")
         self._build()
@@ -264,6 +304,27 @@ class SearchView(QWidget):
         # ── Search bar glamour ─────────────────────────────────────
         search_row = QHBoxLayout()
         search_row.setSpacing(8)
+
+        self._back_btn = QPushButton("‹ Voltar")
+        self._back_btn.setFixedHeight(44)
+        self._back_btn.setFixedWidth(90)
+        self._back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._back_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {BG_ELEVATED};
+                color: {TEXT_SEC};
+                border: 1px solid {BORDER_DIM};
+                border-radius: 22px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                border-color: {ACCENT};
+                color: {ACCENT};
+            }}
+        """)
+        self._back_btn.clicked.connect(self._on_back)
+        self._back_btn.hide()
+        search_row.addWidget(self._back_btn)
 
         self._input = QLineEdit()
         self._input.setPlaceholderText("Pesquisar artista, álbum ou colar link do Spotify...")
@@ -479,6 +540,15 @@ class SearchView(QWidget):
             self._search_text(text)
 
     def _load_url(self, url: str):
+        # Guardar estado se estivermos a mostrar resultados de pesquisa de texto
+        if self._in_text_results and self._last_results:
+            self._history.append({
+                "query": self._input.text(),
+                "results": self._last_results,
+            })
+            self._back_btn.show()
+
+        self._in_text_results = False
         self._current_url = url
         self._status.setText("A carregar...")
         self._results_scroll.hide()
@@ -560,6 +630,9 @@ class SearchView(QWidget):
         QTimer.singleShot(0, lambda: self._fill_search_results(results))
 
     def _fill_search_results(self, results: dict):
+        self._last_results = results
+        self._in_text_results = True
+
         # Limpar resultados anteriores
         while self._results_layout.count():
             item = self._results_layout.takeAt(0)
@@ -580,7 +653,8 @@ class SearchView(QWidget):
             for ar in artists[:5]:
                 genres = ", ".join(ar.get("genres", []))
                 card = ResultCard(ar["name"], genres or "Artista", ar.get("url", ""),
-                                  icon_letter=ar["name"], icon_color="#e040fb")
+                                  icon_letter=ar["name"], icon_color="#e040fb",
+                                  cover_url=ar.get("cover_url", ""), circle=True)
                 card.clicked.connect(self._load_url)
                 self._results_layout.addWidget(card)
             self._results_layout.addSpacing(6)
@@ -589,7 +663,8 @@ class SearchView(QWidget):
             self._results_layout.addWidget(_section_label("ALBUMS", "#e8a030"))
             for a in albums[:5]:
                 card = ResultCard(a["name"], f"{a['artist']} • {a.get('year', '')}", a.get("url", ""),
-                                  icon_letter=a["name"], icon_color="#e8a030")
+                                  icon_letter=a["name"], icon_color="#e8a030",
+                                  cover_url=a.get("cover_url", ""), circle=False)
                 card.clicked.connect(self._load_url)
                 self._results_layout.addWidget(card)
             self._results_layout.addSpacing(6)
@@ -604,6 +679,20 @@ class SearchView(QWidget):
         self._results_layout.addStretch()
         total = len(tracks) + len(albums) + len(artists)
         self._status.setText(f"{total} resultados encontrados.")
+
+    def _on_back(self):
+        if not self._history:
+            return
+        state = self._history.pop()
+        self._input.setText(state["query"])
+        self._header.hide()
+        self._albums_section.hide()
+        self._track_list.setMaximumHeight(16777215)
+        self._results_scroll.show()
+        self.layout().setStretchFactor(self._results_scroll, 1)
+        self._fill_search_results(state["results"])
+        if not self._history:
+            self._back_btn.hide()
 
     def _on_error(self, msg: str):
         self._loading_bar.hide()

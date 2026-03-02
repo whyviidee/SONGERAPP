@@ -264,7 +264,7 @@ class SpotifyClient:
         data = self._sp.playlist(playlist_id)
         name = data["name"]
         tracks = []
-        results = data["tracks"]
+        results = data.get("tracks") or {}
         while True:
             for item in (results.get("items") or []):
                 t = item.get("track")

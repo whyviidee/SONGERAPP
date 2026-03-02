@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-SONGER Setup Server — localhost:8888
+SONGER Setup Server - localhost:8888
 Configura credenciais Spotify e faz OAuth sem copiar/colar URLs.
 
 Uso:
@@ -12,7 +13,7 @@ import time
 import webbrowser
 import threading
 from pathlib import Path
-from urllib.parse import urlencode, urlparse, parse_qs
+from urllib.parse import urlencode
 
 import requests
 from flask import Flask, request, redirect, render_template, jsonify
