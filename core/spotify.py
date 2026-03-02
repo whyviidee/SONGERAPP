@@ -272,6 +272,22 @@ class SpotifyClient:
         tracks = []
         name = "Playlist"
 
+        # Debug: raw HTTP para ver resposta real do Spotify
+        try:
+            token = self._sp.auth if hasattr(self._sp, 'auth') else None
+            if not token and hasattr(self._sp, '_auth'):
+                token = self._sp._auth
+            if token:
+                import requests as _req
+                headers = {"Authorization": f"Bearer {token}"}
+                raw = _req.get(f"https://api.spotify.com/v1/playlists/{playlist_id}",
+                               headers=headers, params={"fields": "name,tracks.total,tracks.limit,tracks.offset,tracks.items.track.id,tracks.items.track.name"}, timeout=10)
+                log.info(f"[PLAYLIST] RAW HTTP {raw.status_code}: {raw.text[:500]}")
+            else:
+                log.info(f"[PLAYLIST] Token não acessível para raw HTTP debug")
+        except Exception as e:
+            log.info(f"[PLAYLIST] Raw HTTP debug falhou: {e}")
+
         # Estratégia 1: playlist() completo — endpoint /playlists/{id} funciona em Dev Mode
         for attempt, kwargs in enumerate([
             {"additional_types": ("track",)},
