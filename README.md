@@ -6,21 +6,25 @@ Download música do Spotify via YouTube e Soulseek. Corre no browser — sem ins
 
 ## Requisitos
 
-- **Python 3.11+**
-- **pip**
-- Conta **Spotify** gratuita (para ligar à biblioteca)
-- Credenciais da **Spotify Developer App** (gratuito, ~5 minutos de setup)
+- **Python 3.11 ou 3.12** — [python.org/downloads](https://www.python.org/downloads)
+- Conta **Spotify** gratuita
+- Credenciais da **Spotify Developer App** (gratuito, ~5 minutos)
+
+> ⚠️ **Windows:** durante a instalação do Python, marca a caixa **"Add Python to PATH"** antes de clicar Install. Sem isso, o terminal não reconhece o comando `python`.
 
 ---
 
 ## Instalação
 
-```bash
-# 1. Clona o repositório
+```powershell
+# 1. Clona o repositório (ou faz download do ZIP no GitHub)
 git clone https://github.com/whyviidee/SONGERAPP.git
 cd SONGERAPP
 
-# 2. Cria ambiente virtual (recomendado)
+# 2. (Só Windows, se der erro no activate) Permite executar scripts
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# 3. Cria ambiente virtual
 python -m venv venv
 
 # Windows
@@ -29,7 +33,7 @@ venv\Scripts\activate
 # macOS / Linux
 source venv/bin/activate
 
-# 3. Instala dependências
+# 4. Instala dependências
 pip install -r requirements.txt
 ```
 
