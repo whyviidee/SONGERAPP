@@ -261,6 +261,7 @@ def api_search():
         return jsonify({"error": "q required"}), 400
     try:
         sp = _get_spotify()
+        sp.connect()
         if "spotify.com" in q or q.startswith("spotify:"):
             # URL ou URI Spotify — devolver as tracks do álbum/playlist/track
             tracks_raw, _name = sp.get_tracks(q)

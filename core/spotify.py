@@ -119,7 +119,8 @@ class SpotifyClient:
 
         log.info(f"Search: '{query}' (limit={limit})")
         per_type_limit = min(limit, 50)
-        results = self._get_public_sp().search(q=query, limit=per_type_limit, type="track")
+        sp_instance = self._sp if self._sp else self._get_public_sp()
+        results = sp_instance.search(q=query, limit=per_type_limit, type="track")
 
         tracks = []
         for t in (results.get("tracks", {}).get("items") or []):
