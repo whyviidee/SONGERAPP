@@ -2,6 +2,8 @@ import re
 import json
 import time
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from html import unescape
 from pathlib import Path
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -316,76 +318,41 @@ class SpotifyClient:
         tracks = []
         name = "Playlist"
 
-        # Debug: raw HTTP para ver resposta real do Spotify
+        # Estratégia 1: playlist() completo
         try:
-            token = self._sp.auth if hasattr(self._sp, 'auth') else None
-            if not token and hasattr(self._sp, '_auth'):
-                token = self._sp._auth
-            if token:
-                import requests as _req
-                headers = {"Authorization": f"Bearer {token}"}
-                raw = _req.get(f"https://api.spotify.com/v1/playlists/{playlist_id}",
-                               headers=headers, params={"fields": "name,tracks.total,tracks.limit,tracks.offset,tracks.items.track.id,tracks.items.track.name"}, timeout=10)
-                log.info(f"[PLAYLIST] RAW HTTP {raw.status_code}: {raw.text[:500]}")
-            else:
-                log.info(f"[PLAYLIST] Token não acessível para raw HTTP debug")
-        except Exception as e:
-            log.info(f"[PLAYLIST] Raw HTTP debug falhou: {e}")
-
-        # Estratégia 1: playlist() completo — endpoint /playlists/{id} funciona em Dev Mode
-        for attempt, kwargs in enumerate([
-            {"additional_types": ("track",)},
-            {"additional_types": ("track",), "market": "from_token"},
-            {},
-        ]):
-            try:
-                log.info(f"[PLAYLIST] tentativa {attempt+1}: playlist({playlist_id}) com {kwargs}")
-                data = self._sp.playlist(playlist_id, **kwargs)
-                name = data.get("name", "Playlist")
-                results = data.get("tracks") or {}
-                total = results.get("total", "?")
-                items_count = len(results.get("items") or [])
-                log.info(f"[PLAYLIST] '{name}': total={total}, items_inline={items_count}, keys={list(results.keys())}")
-                if items_count > 0:
-                    while True:
-                        for item in (results.get("items") or []):
-                            t = item.get("track")
-                            if not t or not t.get("id"):
-                                continue
-                            if t.get("type") != "track":
-                                continue
-                            try:
-                                tracks.append(self._parse_track(t))
-                            except Exception:
-                                continue
-                        if results.get("next"):
-                            try:
-                                results = self._sp.next(results)
-                            except Exception as e:
-                                log.warning(f"[PLAYLIST] paginação falhou: {e}")
-                                break
-                        else:
+            data = self._sp.playlist(playlist_id, additional_types=("track",))
+            name = data.get("name", "Playlist")
+            results = data.get("tracks") or {}
+            items_count = len(results.get("items") or [])
+            log.info(f"[PLAYLIST] '{name}': {items_count} items inline")
+            if items_count > 0:
+                while True:
+                    for item in (results.get("items") or []):
+                        t = item.get("track")
+                        if not t or not t.get("id") or t.get("type") != "track":
+                            continue
+                        try:
+                            tracks.append(self._parse_track(t))
+                        except Exception:
+                            continue
+                    if results.get("next"):
+                        try:
+                            results = self._sp.next(results)
+                        except Exception:
                             break
-                    break
-                else:
-                    log.info(f"[PLAYLIST] 0 items inline, a tentar próxima...")
-                    continue
-            except Exception as e:
-                log.warning(f"[PLAYLIST] playlist() tentativa {attempt+1} falhou: {e}")
-                continue
+                    else:
+                        break
+        except Exception as e:
+            log.warning(f"[PLAYLIST] playlist() falhou: {e}")
 
-        # Estratégia 2: playlist_items() — fallback caso playlist() não devolva tracks
+        # Estratégia 2: playlist_items() fallback
         if not tracks:
-            log.info(f"[PLAYLIST] '{name}': fallback playlist_items()...")
             try:
-                results = self._sp.playlist_items(playlist_id, limit=10, additional_types=("track",))
-                log.info(f"[PLAYLIST] playlist_items: total={results.get('total', '?')}, items={len(results.get('items') or [])}")
+                results = self._sp.playlist_items(playlist_id, limit=50, additional_types=("track",))
                 while results:
                     for item in (results.get("items") or []):
                         t = item.get("track")
-                        if not t or not t.get("id"):
-                            continue
-                        if t.get("type") != "track":
+                        if not t or not t.get("id") or t.get("type") != "track":
                             continue
                         try:
                             tracks.append(self._parse_track(t))
@@ -400,6 +367,11 @@ class SpotifyClient:
                         break
             except Exception as e:
                 log.warning(f"[PLAYLIST] playlist_items falhou (esperado em Dev Mode): {e}")
+
+        # Estratégia 3: embed page scraping (Dev Mode workaround)
+        if not tracks:
+            log.info(f"[PLAYLIST] '{name}': API retornou 0 tracks, a tentar embed fallback...")
+            tracks = self._embed_playlist_tracks(playlist_id)
 
         log.info(f"[PLAYLIST] '{name}': {len(tracks)} tracks FINAL")
         return tracks, name
@@ -464,6 +436,172 @@ class SpotifyClient:
                 })
 
         return {"items": items, "total": total, "offset": offset, "has_more": offset + safe_limit < total}
+
+    # ------------------------------------------------------------------
+    # Embed fallback (Dev Mode workaround)
+    # ------------------------------------------------------------------
+
+    def _embed_playlist_tracks(self, playlist_id: str) -> list[dict]:
+        """Fallback: scrape Spotify embed page quando API bloqueia tracks (Dev Mode)."""
+        embed_url = f"https://open.spotify.com/embed/playlist/{playlist_id}"
+        log.info(f"[EMBED] A tentar embed fallback: {embed_url}")
+
+        session = _requests.Session()
+        session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        })
+        try:
+            resp = session.get(embed_url, timeout=15)
+            if resp.status_code != 200:
+                log.warning(f"[EMBED] HTTP {resp.status_code}")
+                return []
+        except Exception as e:
+            log.warning(f"[EMBED] Request falhou: {e}")
+            return []
+
+        html = resp.text
+
+        # Sub-strategy A: regex para track IDs no HTML
+        track_ids = self._embed_extract_ids(html)
+        if track_ids:
+            log.info(f"[EMBED] Strategy A: {len(track_ids)} IDs extraídos via regex")
+            tracks = self._batch_fetch_tracks(track_ids)
+            if tracks:
+                return tracks
+
+        # Sub-strategy B: parse __NEXT_DATA__ JSON
+        track_ids = self._embed_extract_next_data(html)
+        if track_ids:
+            log.info(f"[EMBED] Strategy B: {len(track_ids)} IDs extraídos via __NEXT_DATA__")
+            tracks = self._batch_fetch_tracks(track_ids)
+            if tracks:
+                return tracks
+
+        # Sub-strategy C: nomes/artistas do HTML → parallel search
+        entries = self._embed_extract_names(html)
+        if entries:
+            log.info(f"[EMBED] Strategy C: {len(entries)} entries extraídas, a pesquisar...")
+            return self._parallel_search_tracks(entries)
+
+        log.warning("[EMBED] Nenhuma sub-strategy funcionou")
+        return []
+
+    def _embed_extract_ids(self, html: str) -> list[str]:
+        """Extrai track IDs do HTML do embed via regex."""
+        patterns = [
+            r'spotify:track:([a-zA-Z0-9]{22})',
+            r'/track/([a-zA-Z0-9]{22})',
+            r'"id"\s*:\s*"([a-zA-Z0-9]{22})"',
+        ]
+        seen = set()
+        ids = []
+        for pat in patterns:
+            for m in re.finditer(pat, html):
+                tid = m.group(1)
+                if tid not in seen:
+                    seen.add(tid)
+                    ids.append(tid)
+        return ids
+
+    def _embed_extract_next_data(self, html: str) -> list[str]:
+        """Extrai track IDs do __NEXT_DATA__ JSON embutido no embed."""
+        m = re.search(r'<script\s+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+        if not m:
+            return []
+        try:
+            data = json.loads(m.group(1))
+        except (json.JSONDecodeError, ValueError):
+            return []
+
+        # Percorrer recursivamente o JSON à procura de URIs/IDs
+        seen = set()
+        ids = []
+
+        def walk(obj):
+            if isinstance(obj, str):
+                wm = re.search(r'spotify:track:([a-zA-Z0-9]{22})', obj)
+                if wm and wm.group(1) not in seen:
+                    seen.add(wm.group(1))
+                    ids.append(wm.group(1))
+            elif isinstance(obj, dict):
+                for v in obj.values():
+                    walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    walk(v)
+
+        walk(data)
+        return ids
+
+    def _embed_extract_names(self, html: str) -> list[dict]:
+        """Extrai nomes de tracks e artistas do HTML do embed."""
+        # Strip tags para texto limpo
+        text = re.sub(r'<[^>]+>', '\n', html)
+        text = unescape(text)
+
+        # Padrão: linhas com "Título • Artista" ou numbered entries
+        entries = []
+        seen = set()
+
+        # Pattern 1: "track title" seguido de artista (embed format varies)
+        for m in re.finditer(
+            r'(?:^|\n)\s*(?:\d+\s+)?(.+?)(?:\s*[•·—\-]\s*|\s+by\s+)(.+?)(?:\s+\d+:\d+)?\s*(?:\n|$)',
+            text
+        ):
+            title = m.group(1).strip()
+            artist = m.group(2).strip()
+            if title and artist and len(title) > 1 and len(title) < 200:
+                key = f"{title.lower()}|{artist.lower()}"
+                if key not in seen:
+                    seen.add(key)
+                    entries.append({"title": title, "artist": artist})
+
+        return entries
+
+    def _batch_fetch_tracks(self, track_ids: list[str]) -> list[dict]:
+        """Batch fetch de tracks por ID (50 de cada vez)."""
+        sp = self._sp or self._get_public_sp()
+        tracks = []
+        # sp.tracks() aceita max 50 IDs
+        for i in range(0, len(track_ids), 50):
+            batch = track_ids[i:i + 50]
+            try:
+                results = sp.tracks(batch)
+                for t in (results.get("tracks") or []):
+                    if t and t.get("id"):
+                        tracks.append(self._parse_track(t))
+            except Exception as e:
+                log.warning(f"[EMBED] batch fetch falhou (batch {i}): {e}")
+        log.info(f"[EMBED] Batch fetch: {len(tracks)}/{len(track_ids)} tracks")
+        return tracks
+
+    def _parallel_search_tracks(self, entries: list[dict]) -> list[dict]:
+        """Search paralelo por nome/artista usando ThreadPoolExecutor."""
+        sp = self._sp or self._get_public_sp()
+        tracks = [None] * len(entries)
+
+        def search_one(idx: int, entry: dict):
+            q = f"track:{entry['title']} artist:{entry['artist']}"
+            try:
+                res = sp.search(q=q, limit=1, type="track")
+                items = res.get("tracks", {}).get("items") or []
+                if items:
+                    return idx, self._parse_track(items[0])
+            except Exception as e:
+                log.debug(f"[EMBED] search falhou para '{entry['title']}': {e}")
+            return idx, None
+
+        workers = min(8, len(entries))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(search_one, i, e) for i, e in enumerate(entries)]
+            for f in as_completed(futures):
+                idx, track = f.result()
+                if track:
+                    tracks[idx] = track
+
+        result = [t for t in tracks if t is not None]
+        log.info(f"[EMBED] Parallel search: {len(result)}/{len(entries)} tracks encontradas")
+        return result
 
     def _album_tracks(self, album_id: str):
         album = self._sp.album(album_id)
