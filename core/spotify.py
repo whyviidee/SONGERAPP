@@ -23,6 +23,19 @@ class SpotifyClient:
         self.client_id = client_id
         self.client_secret = client_secret
         self._sp = None
+        self._sp_cc = None  # Client Credentials — para endpoints públicos
+
+    def _get_public_sp(self) -> spotipy.Spotify:
+        """Spotipy com Client Credentials — não precisa de token do utilizador."""
+        if self._sp_cc is None:
+            from spotipy.oauth2 import SpotifyClientCredentials
+            self._sp_cc = spotipy.Spotify(
+                auth_manager=SpotifyClientCredentials(
+                    client_id=self.client_id,
+                    client_secret=self.client_secret,
+                )
+            )
+        return self._sp_cc
 
     # ------------------------------------------------------------------
     # Auth
@@ -101,12 +114,12 @@ class SpotifyClient:
         Pesquisa no Spotify por texto.
         Retorna: {"tracks": [...], "albums": [...], "artists": [...]}
         """
-        if not self._sp:
+        if not self._sp and not self.client_id:
             raise RuntimeError("Spotify não conectado")
 
         log.info(f"Search: '{query}' (limit={limit})")
         per_type_limit = min(limit, 15)
-        results = self._sp.search(q=query, limit=per_type_limit, type="track,album,artist")
+        results = self._get_public_sp().search(q=query, limit=per_type_limit, type="track,album,artist")
 
         tracks = []
         for t in (results.get("tracks", {}).get("items") or []):
@@ -211,10 +224,9 @@ class SpotifyClient:
 
     def get_artist_top_tracks(self, artist_id: str) -> tuple[list[dict], str]:
         """Retorna top tracks de um artista."""
-        if not self._sp:
-            raise RuntimeError("Spotify não conectado")
-        artist = self._sp.artist(artist_id)
-        results = self._sp._get(f"artists/{artist_id}/top-tracks")
+        pub = self._get_public_sp()
+        artist = pub.artist(artist_id)
+        results = pub._get(f"artists/{artist_id}/top-tracks")
         tracks = [self._parse_track(t) for t in (results.get("tracks") or [])]
         return tracks, artist.get("name", "")
 
