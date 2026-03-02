@@ -101,7 +101,12 @@ async function renderPlaylists(params = {}) {
 
   // Playlist grid
   content.innerHTML = `
-    <div class="view-header"><span class="view-title">Playlists</span></div>
+    <div class="view-header">
+      <span class="view-title">Playlists</span>
+      <button class="btn-sm" id="pl-refresh" style="height:32px;font-size:12px">
+        <i data-lucide="refresh-cw" width="14" height="14"></i> Refresh
+      </button>
+    </div>
     <input class="filter-input" id="pl-filter" placeholder="Filter playlists...">
     <div id="pl-grid"><div class="loading-spinner"><i data-lucide="loader-2" width="20" height="20"></i></div></div>
   `;
@@ -130,6 +135,9 @@ async function renderPlaylists(params = {}) {
       renderGrid(q ? playlists.filter(p => p.name.toLowerCase().includes(q)) : playlists);
     });
   } catch (e) {
-    document.getElementById("pl-grid").innerHTML = `<div class="empty-state" style="color:#ef4444">${e.message}</div>`;
+    document.getElementById("pl-grid").innerHTML = `<div class="empty-state" style="color:#ef4444"><i data-lucide="alert-circle" width="32" height="32"></i>${e.message}</div>`;
+    lucide.createIcons();
   }
+
+  document.getElementById("pl-refresh").addEventListener("click", () => renderPlaylists());
 }
