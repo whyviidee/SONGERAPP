@@ -118,7 +118,7 @@ class SpotifyClient:
             raise RuntimeError("Spotify não conectado")
 
         log.info(f"Search: '{query}' (limit={limit})")
-        per_type_limit = min(limit, 15)
+        per_type_limit = min(limit, 10)  # max 10 por tipo em multi-type search (Spotify API)
         results = self._get_public_sp().search(q=query, limit=per_type_limit, type="track,album,artist")
 
         tracks = []

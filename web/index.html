@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONGER — Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: #1db954;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #000;
+    }
+
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: #666;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .desc {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .desc a {
+      color: #1db954;
+      text-decoration: none;
+    }
+
+    .desc a:hover { text-decoration: underline; }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #aaa;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #e0e0e0;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus { border-color: #1db954; }
+    input::placeholder { color: #444; }
+
+    .btn {
+      width: 100%;
+      background: #1db954;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.15s;
+      letter-spacing: 0.5px;
+    }
+
+    .btn:hover { background: #22c95e; }
+    .btn:active { background: #179945; }
+
+    .status-ok {
+      background: #0d2e1a;
+      border: 1px solid #1db954;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #1db954;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-ok::before { content: "✓"; font-weight: 700; }
+
+    .error-box {
+      background: #2e0d0d;
+      border: 1px solid #c0392b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #e74c3c;
+      margin-bottom: 20px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #2a2a2a;
+      margin: 24px 0;
+    }
+
+    .steps {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.8;
+    }
+
+    .steps strong { color: #aaa; }
+
+    .disconnect-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #666;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .disconnect-btn:hover { border-color: #c0392b; color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <div class="logo">
+      <div class="logo-icon">S</div>
+      <div>
+        <div class="logo-text">SONGER</div>
+        <div class="logo-sub">Setup</div>
+      </div>
+    </div>
+
+    {% if has_token %}
+    <div class="status-ok">Spotify ligado e configurado. Podes fechar e abrir a app.</div>
+    {% endif %}
+
+    {% if error %}
+    <div class="error-box">
+      {% if error == "missing" %}
+        Preenche o Client ID e Client Secret antes de continuar.
+      {% elif error == "cancelled" %}
+        Login cancelado. Tenta novamente.
+      {% elif error == "no_credentials" %}
+        Credenciais não encontradas. Preenche o formulário novamente.
+      {% else %}
+        Erro: {{ error }}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <h2>Configurar Spotify</h2>
+    <p class="desc">
+      Precisas de criar uma app em
+      <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com/dashboard</a>
+      e adicionar <strong>http://localhost:8888/callback</strong> como Redirect URI.
+    </p>
+
+    <form action="/setup" method="post">
+      <div class="field">
+        <label>Client ID</label>
+        <input type="text" name="client_id" value="{{ client_id }}" placeholder="Cole o Client ID aqui..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Client Secret</label>
+        <input type="password" name="client_secret" value="{{ client_secret }}" placeholder="Cole o Client Secret aqui..." autocomplete="off">
+      </div>
+      <button type="submit" class="btn">Ligar ao Spotify →</button>
+    </form>
+
+    {% if has_token %}
+    <hr class="divider">
+    <form action="/disconnect" method="post" style="text-align:center;">
+      <button type="submit" class="disconnect-btn">Desligar conta Spotify</button>
+    </form>
+    {% endif %}
+
+    <hr class="divider">
+
+    <div class="steps">
+      <strong>Como criar a app Spotify:</strong><br>
+      1. Vai a developer.spotify.com/dashboard<br>
+      2. Clica "Create app"<br>
+      3. Em "Redirect URIs" adiciona: <strong>http://localhost:8888/callback</strong><br>
+      4. Copia o Client ID e Client Secret para cima
+    </div>
+
+  </div>
+</body>
+</html>
