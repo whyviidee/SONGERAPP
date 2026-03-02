@@ -118,41 +118,15 @@ class SpotifyClient:
             raise RuntimeError("Spotify não conectado")
 
         log.info(f"Search: '{query}' (limit={limit})")
-        per_type_limit = min(limit, 20)  # Máximo seguro para multi-type search
-        results = self._get_public_sp().search(q=query, limit=per_type_limit, type="track,album,artist")
+        per_type_limit = min(limit, 50)
+        results = self._get_public_sp().search(q=query, limit=per_type_limit, type="track")
 
         tracks = []
         for t in (results.get("tracks", {}).get("items") or []):
             tracks.append(self._parse_track(t))
 
-        albums = []
-        for a in (results.get("albums", {}).get("items") or []):
-            images = a.get("images") or []
-            artists = [ar["name"] for ar in (a.get("artists") or [])]
-            albums.append({
-                "id": a["id"],
-                "name": a["name"],
-                "artist": ", ".join(artists),
-                "cover_url": images[0]["url"] if images else "",
-                "year": (a.get("release_date") or "")[:4],
-                "total_tracks": a.get("total_tracks", 0),
-                "url": a.get("external_urls", {}).get("spotify", ""),
-            })
-
-        artists = []
-        for ar in (results.get("artists", {}).get("items") or []):
-            images = ar.get("images") or []
-            artists.append({
-                "id": ar["id"],
-                "name": ar["name"],
-                "cover_url": images[0]["url"] if images else "",
-                "genres": ar.get("genres", [])[:3],
-                "followers": ar.get("followers", {}).get("total", 0),
-                "url": ar.get("external_urls", {}).get("spotify", ""),
-            })
-
-        log.info(f"Search results: {len(tracks)} tracks, {len(albums)} albums, {len(artists)} artists")
-        return {"tracks": tracks, "albums": albums, "artists": artists}
+        log.info(f"Search results: {len(tracks)} tracks")
+        return {"tracks": tracks, "albums": [], "artists": []}
 
     # ------------------------------------------------------------------
     # Minhas Playlists
