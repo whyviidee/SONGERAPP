@@ -61,21 +61,38 @@ settingsModal.addEventListener("click", e => {
 
 document.getElementById("browse-dl-path").addEventListener("click", async () => {
   try {
-    const r = await API.get("/api/browse-folder");
-    if (r && r.path) document.getElementById("s-dl-path").value = r.path;
-  } catch (e) {
-    // Fallback: show quick-pick options
+    const options = await API.get("/api/folder-options");
+    const buttons = options.map((o, i) => ({
+      label: o.label, value: o.path, primary: i === 0,
+    }));
+    buttons.push({ label: "Cancel", value: null });
     const pick = await showConfirm({
       title: "Choose Download Folder",
-      body: "Select a common location or type a custom path in the field above.",
-      buttons: [
-        { label: "Music/SONGER", value: "default" },
-        { label: "Downloads/SONGER", value: "downloads" },
-        { label: "Cancel", value: null },
-      ],
+      body: "Select a location or type a custom path directly in the field.",
+      buttons,
     });
-    if (pick === "default") document.getElementById("s-dl-path").value = "";
-    else if (pick === "downloads") document.getElementById("s-dl-path").value = "~/Downloads/SONGER";
+    if (pick) document.getElementById("s-dl-path").value = pick;
+  } catch (e) {
+    toast("Could not load folder options", "error");
+  }
+});
+
+document.getElementById("reset-download-db").addEventListener("click", async () => {
+  const answer = await showConfirm({
+    title: "Reset Download Database",
+    body: "This will clear the record of downloaded tracks so everything shows \"Download\" again. Your music files won't be deleted.",
+    buttons: [
+      { label: "Cancel", value: false },
+      { label: "Reset", value: true, primary: true },
+    ],
+  });
+  if (!answer) return;
+  try {
+    await API.del("/api/downloaded-ids");
+    _invalidateDownloadedCache();
+    toast("Download database cleared", "success");
+  } catch (e) {
+    toast("Failed to reset", "error");
   }
 });
 

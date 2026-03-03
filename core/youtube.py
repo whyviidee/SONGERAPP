@@ -171,6 +171,5 @@ def _hook(d: dict, cb):
 
 
 def _safe_stem(track: dict) -> str:
-    num = track.get("track_number", 0)
-    name = f"{num:02d} - {track.get('artist', 'Unknown')} - {track.get('title', 'Unknown')}"
+    name = track.get("title", "Unknown")
     return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)[:200]

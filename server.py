@@ -636,6 +636,16 @@ def api_queue():
         return jsonify(list(_download_queue.values()))
 
 
+@app.route("/api/folder-options")
+def api_folder_options():
+    home = Path.home()
+    return jsonify([
+        {"label": "Music/SONGER", "path": str(home / "Music" / "SONGER")},
+        {"label": "Downloads/SONGER", "path": str(home / "Downloads" / "SONGER")},
+        {"label": "Desktop/SONGER", "path": str(home / "Desktop" / "SONGER")},
+    ])
+
+
 @app.route("/api/downloaded-ids")
 def api_downloaded_ids():
     # Start with persistent map (survives restarts)
@@ -646,6 +656,18 @@ def api_downloaded_ids():
             if j.get("status") == "done" and j.get("track_id") and j.get("path"):
                 result[j["track_id"]] = j["path"]
     return jsonify(result)
+
+
+@app.route("/api/downloaded-ids", methods=["DELETE"])
+def api_downloaded_ids_clear():
+    """Clear the downloaded map and in-memory queue done entries."""
+    if _DOWNLOADED_MAP_PATH.exists():
+        _DOWNLOADED_MAP_PATH.unlink()
+    with _queue_lock:
+        for j in _download_queue.values():
+            if j.get("status") == "done":
+                j["status"] = "cleared"
+    return jsonify({"ok": True})
 
 
 @app.route("/api/queue/<job_id>", methods=["DELETE"])
