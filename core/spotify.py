@@ -276,22 +276,49 @@ class SpotifyClient:
         tracks = [self._parse_track(t) for t in (results.get("tracks") or [])]
         return tracks, artist.get("name", "")
 
-    def get_recommendations(self, seed_artists: list[str] = None, seed_tracks: list[str] = None, limit: int = 10) -> list[dict]:
-        """Retorna recomendações baseadas em seed artists/tracks."""
+    def get_recommendations(self, seed_tracks: list[dict] = None, limit: int = 10) -> list[dict]:
+        """Recomendações via top tracks de artistas das liked songs.
+        O endpoint /recommendations foi deprecado pelo Spotify em Nov 2024."""
         sp = self._sp or self._get_public_sp()
-        kwargs = {"limit": min(limit, 10)}
-        if seed_artists:
-            kwargs["seed_artists"] = seed_artists[:5]
-        if seed_tracks:
-            kwargs["seed_tracks"] = seed_tracks[:5]
-        if not seed_artists and not seed_tracks:
+        if not seed_tracks:
             return []
-        try:
-            results = sp.recommendations(**kwargs)
-            return [self._parse_track(t) for t in (results.get("tracks") or [])]
-        except Exception as e:
-            log.warning(f"Recommendations failed: {e}")
+
+        # Extrair artist IDs únicos das seed tracks
+        artist_ids = []
+        seen_artists = set()
+        seed_ids = set()
+        for t in seed_tracks:
+            if not isinstance(t, dict):
+                continue
+            seed_ids.add(t.get("id", ""))
+            aid = t.get("artist_id", "")
+            if aid and aid not in seen_artists:
+                seen_artists.add(aid)
+                artist_ids.append(aid)
+            if len(artist_ids) >= 3:
+                break
+
+        if not artist_ids:
             return []
+
+        # Buscar top tracks de cada artista (excluindo as seed)
+        tracks = []
+        seen_tracks = set(seed_ids)
+        for aid in artist_ids:
+            try:
+                results = sp._get(f"artists/{aid}/top-tracks")
+                for t in (results.get("tracks") or []):
+                    if t["id"] not in seen_tracks:
+                        seen_tracks.add(t["id"])
+                        tracks.append(self._parse_track(t))
+                    if len(tracks) >= limit:
+                        break
+            except Exception as e:
+                log.debug(f"Top tracks falhou para artist {aid}: {e}")
+            if len(tracks) >= limit:
+                break
+
+        return tracks[:limit]
 
     # ------------------------------------------------------------------
     # Leitura de tracks
@@ -663,7 +690,9 @@ class SpotifyClient:
 
     def _parse_track(self, track: dict, album: dict = None) -> dict:
         alb = album or track.get("album") or {}
-        artists = [a["name"] for a in track.get("artists") or []]
+        track_artists = track.get("artists") or []
+        artists = [a["name"] for a in track_artists]
+        first_artist_id = track_artists[0]["id"] if track_artists else ""
         images = alb.get("images") or []
         cover_url = images[0]["url"] if images else ""
         alb_artists = alb.get("artists") or []
@@ -672,6 +701,7 @@ class SpotifyClient:
             "id": track.get("id", ""),
             "title": track.get("name", ""),
             "artist": ", ".join(artists),
+            "artist_id": first_artist_id,
             "album": alb.get("name", ""),
             "album_artist": album_artist,
             "year": (alb.get("release_date") or "")[:4],

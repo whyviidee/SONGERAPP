@@ -102,13 +102,13 @@ async function renderSearch(params = {}) {
             </div>
             <div class="track-list" id="tracks-list">
               ${tracks.slice(0, MAX_PER_SECTION).map(t => `
-                <div class="track-row" data-id="${t.id}" data-uri="${t.uri || ""}">
+                <div class="track-row" data-id="${t.id}" data-uri="${t.uri || ""}" data-preview-url="${t.preview_url || ""}" data-track-name="${t.name}" data-track-artist="${t.artist}" data-track-album="${t.album}" data-track-cover="${t.cover || ""}">
                   ${t.cover
                     ? `<img class="track-cover" src="${t.cover}" alt="">`
                     : `<div class="track-cover" style="display:flex;align-items:center;justify-content:center"><i data-lucide="music" width="16" height="16"></i></div>`}
                   <div class="track-info">
                     <div class="track-name">${t.name}</div>
-                    <div class="track-artist">${t.artist} · ${t.album}</div>
+                    <div class="track-artist">${_artistHTML(t.artist, t.artist_id)}${t.album ? ` · ${t.album}` : ""}</div>
                   </div>
                   <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
                   <button class="btn-download" data-id="${t.id}" data-name="${t.name}" data-artist="${t.artist}" data-album="${t.album}" data-cover="${t.cover || ""}" data-uri="${t.uri || ""}">
@@ -144,8 +144,10 @@ async function renderSearch(params = {}) {
         });
       });
 
-      // Wire download buttons
+      // Wire download buttons, artist links, double-click preview
       _wireDownloadButtons(container);
+      _wireArtistLinks(container);
+      _wirePreview(container, tracks);
     } catch (err) {
       container.innerHTML = `<div class="empty-state" style="color:#ef4444"><i data-lucide="alert-circle" width="32" height="32"></i>${err.message}</div>`;
       lucide.createIcons();
@@ -206,13 +208,13 @@ async function _renderSearchType(content, type, q) {
       let html = "";
       if (type === "tracks") {
         html = data.items.map(t => `
-          <div class="track-row" data-id="${t.id}">
+          <div class="track-row" data-id="${t.id}" data-preview-url="${t.preview_url || ""}" data-track-name="${t.name}" data-track-artist="${t.artist}" data-track-album="${t.album}" data-track-cover="${t.cover || ""}">
             ${t.cover
               ? `<img class="track-cover" src="${t.cover}" alt="">`
               : `<div class="track-cover" style="display:flex;align-items:center;justify-content:center"><i data-lucide="music" width="16" height="16"></i></div>`}
             <div class="track-info">
               <div class="track-name">${t.name}</div>
-              <div class="track-artist">${t.artist} · ${t.album}</div>
+              <div class="track-artist">${_artistHTML(t.artist, t.artist_id)}${t.album ? ` · ${t.album}` : ""}</div>
             </div>
             <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
             <button class="btn-download" data-id="${t.id}" data-name="${t.name}" data-artist="${t.artist}" data-album="${t.album}" data-cover="${t.cover || ""}">
@@ -267,6 +269,8 @@ async function _renderSearchType(content, type, q) {
         card.addEventListener("click", () => APP.navigate("album", { id: card.dataset.id, _q: q }));
       });
       _wireDownloadButtons(container);
+      _wireArtistLinks(container);
+      if (type === "tracks") _wirePreview(container, data.items);
 
       loader.style.display = "none";
       if (hasMore) moreBtn.style.display = "";

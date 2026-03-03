@@ -36,8 +36,17 @@ window.APP = {
 document.querySelectorAll(".nav-item[data-view]").forEach(el => {
   el.addEventListener("click", e => {
     e.preventDefault();
+    if (el.dataset.view === "queue") _resetDownloadBadge();
     APP.navigate(el.dataset.view);
   });
+});
+
+// Queue modal close
+document.getElementById("close-queue-modal").addEventListener("click", () => {
+  document.getElementById("queue-modal").classList.remove("open");
+});
+document.getElementById("queue-modal").addEventListener("click", e => {
+  if (e.target.id === "queue-modal") e.target.classList.remove("open");
 });
 
 // Settings modal
@@ -54,11 +63,32 @@ document.getElementById("browse-dl-path").addEventListener("click", async () => 
   try {
     const r = await API.get("/api/browse-folder");
     if (r && r.path) document.getElementById("s-dl-path").value = r.path;
-  } catch (e) {}
+  } catch (e) {
+    // Fallback: show quick-pick options
+    const pick = await showConfirm({
+      title: "Choose Download Folder",
+      body: "Select a common location or type a custom path in the field above.",
+      buttons: [
+        { label: "Music/SONGER", value: "default" },
+        { label: "Downloads/SONGER", value: "downloads" },
+        { label: "Cancel", value: null },
+      ],
+    });
+    if (pick === "default") document.getElementById("s-dl-path").value = "";
+    else if (pick === "downloads") document.getElementById("s-dl-path").value = "~/Downloads/SONGER";
+  }
 });
 
 document.getElementById("disconnect-spotify").addEventListener("click", async () => {
-  if (!confirm("Disconnect Spotify? You'll need to re-authenticate.")) return;
+  const answer = await showConfirm({
+    title: "Disconnect Spotify",
+    body: "This will remove your saved token. You'll need to re-authenticate to use SONGER.",
+    buttons: [
+      { label: "Cancel", value: false },
+      { label: "Disconnect", value: true, primary: true },
+    ],
+  });
+  if (!answer) return;
   try {
     await fetch("/disconnect", { method: "POST" });
     toast("Spotify disconnected. Redirecting...", "info");
@@ -99,10 +129,53 @@ document.getElementById("s-source").addEventListener("change", () =>
   _updateFlacWarning("s-format", "s-source", "s-flac-warning"));
 
 async function saveSettings() {
+  const newPath = document.getElementById("s-dl-path").value.trim();
+
+  // Check if download path changed — warn about library impact
+  try {
+    const cfg = await API.get("/api/config");
+    const oldPath = (cfg.download?.path || "").trim();
+    if (newPath && oldPath && newPath !== oldPath) {
+      const choice = await showConfirm({
+        title: "Download Path Changed",
+        body: `<p>You're changing from:</p>
+          <p style="color:var(--text);font-weight:600;font-size:12px;padding:6px 10px;background:var(--surface-2);border-radius:6px;margin:4px 0">${oldPath}</p>
+          <p>to:</p>
+          <p style="color:var(--text);font-weight:600;font-size:12px;padding:6px 10px;background:var(--surface-2);border-radius:6px;margin:4px 0">${newPath}</p>
+          <p style="margin-top:8px">Your existing music files in the old folder won't be moved. Choose how to handle this:</p>`,
+        buttons: [
+          { label: "Keep both (recommended)", value: "keep", primary: true },
+          { label: "Only use new path", value: "new" },
+          { label: "Cancel", value: null },
+        ],
+      });
+      if (choice === null) return;
+      if (choice === "keep") {
+        // Save old path as secondary library source
+        await API.post("/api/settings", {
+          download: {
+            path: newPath,
+            format: document.getElementById("s-format").value,
+            source: document.getElementById("s-source").value,
+            legacy_paths: [...new Set([...(cfg.download?.legacy_paths || []), oldPath])],
+          },
+          soulseek: {
+            slskd_url: document.getElementById("s-slsk-url").value,
+            slskd_api_key: document.getElementById("s-slsk-key").value,
+          },
+        });
+        settingsModal.classList.remove("open");
+        toast("Settings saved. Old library preserved.", "success");
+        return;
+      }
+      // "new" → just save normally, old files stay but won't show in library
+    }
+  } catch (e) {}
+
   try {
     await API.post("/api/settings", {
       download: {
-        path: document.getElementById("s-dl-path").value,
+        path: newPath,
         format: document.getElementById("s-format").value,
         source: document.getElementById("s-source").value,
       },

@@ -290,12 +290,11 @@ def api_recommendations():
     try:
         sp = _get_spotify()
         sp.connect()
-        # Use recent liked songs as seeds
+        # Usar liked songs como seed para descobrir artistas relacionados
         liked = sp.get_liked_songs(limit=5)
-        seed_tracks = [t["id"] for t in liked[:5] if t.get("id")]
-        if not seed_tracks:
+        if not liked:
             return jsonify([])
-        recs = sp.get_recommendations(seed_tracks=seed_tracks, limit=10)
+        recs = sp.get_recommendations(seed_tracks=liked[:5], limit=10)
         tracks = []
         for t in recs:
             tracks.append({
@@ -345,9 +344,11 @@ def api_search():
                     "id": t.get("id", ""),
                     "name": t.get("title", t.get("name", "")),
                     "artist": t.get("artist", ""),
+                    "artist_id": t.get("artist_id", ""),
                     "album": t.get("album", ""),
                     "cover": t.get("cover_url", ""),
                     "duration_ms": t.get("duration_ms", 0),
+                    "preview_url": t.get("preview_url", ""),
                     "uri": "",
                     "external_url": "",
                 })
@@ -359,9 +360,11 @@ def api_search():
                     "id": t.get("id", ""),
                     "name": t.get("title", ""),
                     "artist": t.get("artist", ""),
+                    "artist_id": t.get("artist_id", ""),
                     "album": t.get("album", ""),
                     "cover": t.get("cover_url", ""),
                     "duration_ms": t.get("duration_ms", 0),
+                    "preview_url": t.get("preview_url", ""),
                     "uri": "",
                     "external_url": "",
                 })
@@ -412,8 +415,10 @@ def api_artist(artist_id):
         for t in top_tracks_raw:
             top_tracks.append({
                 "id": t.get("id", ""), "name": t.get("title", ""),
-                "artist": t.get("artist", ""), "album": t.get("album", ""),
+                "artist": t.get("artist", ""), "artist_id": t.get("artist_id", ""),
+                "album": t.get("album", ""),
                 "cover": t.get("cover_url", ""), "duration_ms": t.get("duration_ms", 0),
+                "preview_url": t.get("preview_url", ""),
                 "uri": "", "external_url": "",
             })
         albums = []
@@ -440,8 +445,10 @@ def api_album(album_id):
         for t in data["tracks"]:
             tracks.append({
                 "id": t.get("id", ""), "name": t.get("title", ""),
-                "artist": t.get("artist", ""), "album": t.get("album", ""),
+                "artist": t.get("artist", ""), "artist_id": t.get("artist_id", ""),
+                "album": t.get("album", ""),
                 "cover": t.get("cover_url", ""), "duration_ms": t.get("duration_ms", 0),
+                "preview_url": t.get("preview_url", ""),
                 "uri": "", "external_url": "",
             })
         return jsonify({
@@ -477,8 +484,10 @@ def api_search_type(search_type):
             if sp_type == "track":
                 items.append({
                     "id": item.get("id", ""), "name": item.get("title", ""),
-                    "artist": item.get("artist", ""), "album": item.get("album", ""),
+                    "artist": item.get("artist", ""), "artist_id": item.get("artist_id", ""),
+                    "album": item.get("album", ""),
                     "cover": item.get("cover_url", ""), "duration_ms": item.get("duration_ms", 0),
+                    "preview_url": item.get("preview_url", ""),
                     "uri": "", "external_url": "",
                 })
             elif sp_type == "album":
@@ -737,9 +746,11 @@ def api_playlist_tracks(playlist_id):
                 "id": t.get("id", ""),
                 "name": t.get("title", t.get("name", "")),
                 "artist": t.get("artist", ""),
+                "artist_id": t.get("artist_id", ""),
                 "album": t.get("album", ""),
                 "cover": t.get("cover_url", ""),
                 "duration_ms": t.get("duration_ms", 0),
+                "preview_url": t.get("preview_url", ""),
                 "uri": t.get("id", ""),
             })
         print(f"[DEBUG] Returning {len(result)} tracks as JSON")
@@ -755,8 +766,16 @@ def api_playlist_tracks(playlist_id):
 def api_library():
     cfg = _load_config()
     dl_path = cfg.get("download", {}).get("path", str(Path.home() / "Music" / "SONGER"))
+    legacy_paths = cfg.get("download", {}).get("legacy_paths", [])
     try:
         files = scan_library(dl_path)
+        # Also scan legacy paths (old download locations user chose to keep)
+        for lp in legacy_paths:
+            if lp and lp != dl_path and Path(lp).exists():
+                try:
+                    files.extend(scan_library(lp))
+                except Exception:
+                    pass
         return jsonify(files)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -954,9 +973,11 @@ def api_liked_songs():
                 "id": t.get("id", ""),
                 "name": t.get("title", t.get("name", "")),
                 "artist": t.get("artist", ""),
+                "artist_id": t.get("artist_id", ""),
                 "album": t.get("album", ""),
                 "cover": t.get("cover_url", ""),
                 "duration_ms": t.get("duration_ms", 0),
+                "preview_url": t.get("preview_url", ""),
                 "uri": t.get("id", ""),
             })
         return jsonify(result)
@@ -1079,7 +1100,7 @@ def stream_file(filepath):
         return jsonify({"error": "File not found"}), 404
     # Only serve files from the configured download path
     cfg = _load_config()
-    dl_path = cfg.get("download", {}).get("path", "")
+    dl_path = cfg.get("download", {}).get("path", "") or str(Path.home() / "Music" / "SONGER")
     try:
         p.relative_to(dl_path)
     except ValueError:

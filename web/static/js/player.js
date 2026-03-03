@@ -4,23 +4,51 @@ let _playlist = [];
 let _currentIdx = -1;
 let _shuffle = false;
 let _repeat = false;
+let _isPreview = false; // true when playing a 30s Spotify preview
 
 window.PLAYER = {
   playFile(path, info = {}) {
+    _isPreview = false;
     audioEl.src = `/stream/${encodeURIComponent(path)}`;
     audioEl.play();
-    document.getElementById("player-title").textContent = info.name || path.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
-    document.getElementById("player-sub").textContent = [info.artist, info.album].filter(Boolean).join(" · ");
-    document.getElementById("player-art").src = info.cover || "";
-    document.getElementById("play-icon").setAttribute("data-lucide", "pause");
-    lucide.createIcons();
+    _updatePlayerUI(info, path);
   },
   setPlaylist(files, startIdx = 0) {
     _playlist = files;
     _currentIdx = startIdx;
     if (files[startIdx]) this.playFile(files[startIdx].path, files[startIdx]);
   },
+  preview(url, info = {}) {
+    if (!url) { toast("No preview available for this track", "error"); return; }
+    _isPreview = true;
+    audioEl.src = url;
+    audioEl.play();
+    _updatePlayerUI(info);
+    document.getElementById("player").classList.add("preview-mode");
+  },
+  setPreviewPlaylist(tracks, startIdx = 0) {
+    _playlist = tracks;
+    _currentIdx = startIdx;
+    if (tracks[startIdx]) this.preview(tracks[startIdx].preview_url, tracks[startIdx]);
+  },
+  _getPlaylist() {
+    return { playlist: _playlist, currentIdx: _currentIdx, isPreview: _isPreview };
+  },
 };
+
+function _updatePlayerUI(info, path) {
+  const name = info.name || (path ? path.split(/[\\/]/).pop().replace(/\.[^.]+$/, "") : "Preview");
+  document.getElementById("player-title").textContent = name;
+  document.getElementById("player-sub").textContent = [info.artist, info.album].filter(Boolean).join(" · ");
+  document.getElementById("player-art").src = info.cover || "";
+  document.getElementById("play-icon").setAttribute("data-lucide", "pause");
+  if (_isPreview) {
+    document.getElementById("player").classList.add("preview-mode");
+  } else {
+    document.getElementById("player").classList.remove("preview-mode");
+  }
+  lucide.createIcons();
+}
 
 // Play/pause
 document.getElementById("ctrl-play").addEventListener("click", () => {
@@ -67,14 +95,22 @@ function playNext() {
     ? Math.floor(Math.random() * _playlist.length)
     : (_currentIdx + 1) % _playlist.length;
   const t = _playlist[_currentIdx];
-  PLAYER.playFile(t.path, t);
+  if (_isPreview) {
+    PLAYER.preview(t.preview_url, t);
+  } else {
+    PLAYER.playFile(t.path, t);
+  }
 }
 
 function playPrev() {
   if (!_playlist.length) return;
   _currentIdx = (_currentIdx - 1 + _playlist.length) % _playlist.length;
   const t = _playlist[_currentIdx];
-  PLAYER.playFile(t.path, t);
+  if (_isPreview) {
+    PLAYER.preview(t.preview_url, t);
+  } else {
+    PLAYER.playFile(t.path, t);
+  }
 }
 
 document.getElementById("ctrl-next").addEventListener("click", playNext);
@@ -91,8 +127,8 @@ document.getElementById("ctrl-repeat").addEventListener("click", e => {
   e.currentTarget.classList.toggle("active", _repeat);
 });
 
-// Queue view btn
-document.getElementById("ctrl-queue-view").addEventListener("click", () => APP.navigate("queue"));
+// Queue view btn → opens now playing modal
+document.getElementById("ctrl-queue-view").addEventListener("click", () => _openQueueModal());
 
 function fmtSeconds(s) {
   if (isNaN(s)) return "0:00";

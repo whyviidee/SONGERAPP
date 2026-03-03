@@ -82,14 +82,14 @@ async function _renderLikedList(tracks) {
   }
 
   list.innerHTML = `<div class="track-list">${tracks.map(t => `
-    <div class="track-row">
+    <div class="track-row" data-id="${_esc(t.id)}" data-preview-url="${_esc(t.preview_url || "")}" data-track-name="${_esc(t.name)}" data-track-artist="${_esc(t.artist)}" data-track-album="${_esc(t.album || "")}" data-track-cover="${_esc(t.cover || "")}">
       ${t.cover
         ? `<img class="track-cover" src="${_esc(t.cover)}" alt="" onerror="this.style.opacity='0'">`
         : `<div class="track-cover" style="background:var(--surface-2)"></div>`
       }
       <div class="track-info">
         <div class="track-name">${_esc(t.name)}</div>
-        <div class="track-artist">${_esc(t.artist)}${t.album ? ` · ${_esc(t.album)}` : ""}</div>
+        <div class="track-artist">${_artistHTML(t.artist, t.artist_id)}${t.album ? ` · ${_esc(t.album)}` : ""}</div>
       </div>
       <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
       <button class="btn-download" data-id="${_esc(t.id)}" data-name="${_esc(t.name)}" data-artist="${_esc(t.artist)}" data-album="${_esc(t.album || "")}" data-cover="${_esc(t.cover || "")}">
@@ -99,6 +99,8 @@ async function _renderLikedList(tracks) {
 
   lucide.createIcons();
   await _wireDownloadButtons(list);
+  _wireArtistLinks(list);
+  _wirePreview(list, tracks);
 }
 
 function _esc(s) {

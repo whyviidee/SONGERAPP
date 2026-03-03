@@ -91,11 +91,11 @@ async function renderPlaylists(params = {}) {
 
     const plTracksEl = document.getElementById("pl-tracks");
     plTracksEl.innerHTML = `<div class="track-list">${tracks.map(t => `
-      <div class="track-row">
+      <div class="track-row" data-id="${t.id || ""}" data-preview-url="${(t.preview_url || "").replace(/"/g, "&quot;")}" data-track-name="${(t.name || "").replace(/"/g, "&quot;")}" data-track-artist="${(t.artist || "").replace(/"/g, "&quot;")}" data-track-album="${(t.album || "").replace(/"/g, "&quot;")}" data-track-cover="${(t.cover || "").replace(/"/g, "&quot;")}">
         ${t.cover ? `<img class="track-cover" src="${t.cover}" alt="">` : `<div class="track-cover"></div>`}
         <div class="track-info">
           <div class="track-name">${t.name}</div>
-          <div class="track-artist">${t.artist} · ${t.album}</div>
+          <div class="track-artist">${_artistHTML(t.artist, t.artist_id)}${t.album ? ` · ${t.album}` : ""}</div>
         </div>
         <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
         <button class="btn-download" data-id="${t.id || ""}" data-name="${(t.name || "").replace(/"/g, "&quot;")}" data-artist="${(t.artist || "").replace(/"/g, "&quot;")}" data-album="${(t.album || "").replace(/"/g, "&quot;")}" data-cover="${(t.cover || "").replace(/"/g, "&quot;")}">
@@ -104,6 +104,8 @@ async function renderPlaylists(params = {}) {
       </div>`).join("")}</div>`;
     lucide.createIcons();
     await _wireDownloadButtons(plTracksEl);
+    _wireArtistLinks(plTracksEl);
+    _wirePreview(plTracksEl, tracks);
     return;
   }
 

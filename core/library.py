@@ -9,6 +9,26 @@ log = get_logger("library")
 AUDIO_EXTS = {".mp3", ".flac", ".m4a", ".ogg", ".opus", ".wav", ".wma", ".aac"}
 
 
+def _read_metadata(filepath: Path) -> dict:
+    """Try to read year and genre from audio metadata."""
+    try:
+        from mutagen import File as MutagenFile
+        audio = MutagenFile(str(filepath), easy=True)
+        if audio is None:
+            return {}
+        year = ""
+        genre = ""
+        if "date" in audio:
+            year = str(audio["date"][0])[:4]
+        elif "year" in audio:
+            year = str(audio["year"][0])[:4]
+        if "genre" in audio:
+            genre = str(audio["genre"][0])
+        return {"year": int(year) if year.isdigit() else 0, "genre": genre}
+    except Exception:
+        return {}
+
+
 def scan_library(base_path: str) -> list[dict]:
     """
     Faz scan da pasta de downloads.
@@ -36,13 +56,19 @@ def scan_library(base_path: str) -> list[dict]:
                 artist = ""
                 album = ""
 
+            stat = f.stat()
+            meta = _read_metadata(f)
+
             files.append({
                 "path": str(f),
                 "name": f.stem,
                 "ext": f.suffix.lower().lstrip("."),
                 "artist": artist,
                 "album": album,
-                "size_mb": round(f.stat().st_size / (1024 * 1024), 1),
+                "size_mb": round(stat.st_size / (1024 * 1024), 1),
+                "modified": stat.st_mtime,
+                "year": meta.get("year", 0),
+                "genre": meta.get("genre", ""),
             })
 
     files.sort(key=lambda x: (x["artist"].lower(), x["album"].lower(), x["name"].lower()))

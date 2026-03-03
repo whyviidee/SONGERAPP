@@ -39,14 +39,14 @@ async function renderAlbum(params = {}) {
 
       <div class="track-list" id="album-tracks">
         ${tracks.map((t, i) => `
-          <div class="track-row" data-id="${t.id}">
+          <div class="track-row" data-id="${t.id}" data-preview-url="${t.preview_url || ""}" data-track-name="${t.name}" data-track-artist="${t.artist}" data-track-album="${t.album}" data-track-cover="${t.cover || ""}">
             <div class="track-number">${i + 1}</div>
             ${t.cover
               ? `<img class="track-cover" src="${t.cover}" alt="">`
               : `<div class="track-cover" style="display:flex;align-items:center;justify-content:center"><i data-lucide="music" width="16" height="16"></i></div>`}
             <div class="track-info">
               <div class="track-name">${t.name}</div>
-              <div class="track-artist">${t.artist}</div>
+              <div class="track-artist">${_artistHTML(t.artist, t.artist_id)}</div>
             </div>
             <div class="track-duration">${fmtDuration(t.duration_ms)}</div>
             <button class="btn-download" data-id="${t.id}" data-name="${t.name}" data-artist="${t.artist}" data-album="${t.album}" data-cover="${t.cover || ""}">
@@ -95,8 +95,10 @@ async function renderAlbum(params = {}) {
       toast(`${added} tracks added to queue`, "success");
     });
 
-    // Individual download buttons
+    // Individual download buttons + artist links + preview
     await _wireDownloadButtons(content);
+    _wireArtistLinks(content);
+    _wirePreview(content, tracks);
   } catch (err) {
     content.innerHTML = `<div class="empty-state" style="color:#ef4444"><i data-lucide="alert-circle" width="32" height="32"></i>${err.message}</div>`;
     lucide.createIcons();

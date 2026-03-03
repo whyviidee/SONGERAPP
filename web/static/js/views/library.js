@@ -4,7 +4,13 @@ async function renderLibrary() {
   content.innerHTML = `
     <div class="view-header">
       <span class="view-title">Library</span>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <select class="lib-sort-select" id="lib-sort">
+          <option value="recent">Sort: Recently Added</option>
+          <option value="artist">Sort: Artist A-Z</option>
+          <option value="year">Sort: Year</option>
+          <option value="genre">Sort: Genre</option>
+        </select>
         <button class="btn-sm" id="open-folder-btn">
           <i data-lucide="folder-open" width="14" height="14"></i> Open Folder
         </button>
@@ -38,16 +44,35 @@ async function renderLibrary() {
 
   function renderTree(files) {
     const q = document.getElementById("lib-filter")?.value?.toLowerCase() || "";
+    const sortMode = document.getElementById("lib-sort")?.value || "artist";
     const filtered = q ? files.filter(f => f.artist.toLowerCase().includes(q) || f.name.toLowerCase().includes(q)) : files;
 
-    // Group by artist → album
+    // Sort files based on mode before grouping
+    let sorted = [...filtered];
+    if (sortMode === "recent") {
+      sorted.sort((a, b) => (b.modified || 0) - (a.modified || 0));
+    } else if (sortMode === "year") {
+      sorted.sort((a, b) => (b.year || 0) - (a.year || 0));
+    }
+
+    // Group by artist → album (or genre → artist for genre sort)
     const tree = {};
-    for (const f of filtered) {
-      const artist = f.artist || "Unknown Artist";
-      const album = f.album || "Unknown Album";
-      if (!tree[artist]) tree[artist] = {};
-      if (!tree[artist][album]) tree[artist][album] = [];
-      tree[artist][album].push(f);
+    if (sortMode === "genre") {
+      for (const f of sorted) {
+        const genre = f.genre || "Unknown Genre";
+        const artist = f.artist || "Unknown Artist";
+        if (!tree[genre]) tree[genre] = {};
+        if (!tree[genre][artist]) tree[genre][artist] = [];
+        tree[genre][artist].push(f);
+      }
+    } else {
+      for (const f of sorted) {
+        const artist = f.artist || "Unknown Artist";
+        const album = f.album || "Unknown Album";
+        if (!tree[artist]) tree[artist] = {};
+        if (!tree[artist][album]) tree[artist][album] = [];
+        tree[artist][album].push(f);
+      }
     }
 
     const libTree = document.getElementById("lib-tree");
@@ -59,7 +84,12 @@ async function renderLibrary() {
 
     const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
-    libTree.innerHTML = Object.entries(tree).sort(([a],[b]) => a.localeCompare(b)).map(([artist, albums]) => {
+    const sortEntries = sortMode === "recent"
+      ? Object.entries(tree) // keep insertion order (already sorted by modified)
+      : Object.entries(tree).sort(([a],[b]) => a.localeCompare(b));
+    const groupLabel = sortMode === "genre" ? "genre" : "artist";
+
+    libTree.innerHTML = sortEntries.map(([artist, albums]) => {
       const albumCount = Object.keys(albums).length;
       const trackCount = Object.values(albums).flat().length;
       const initial = artist.trim()[0]?.toUpperCase() || "?";
@@ -151,6 +181,7 @@ async function renderLibrary() {
 
   document.getElementById("refresh-lib").addEventListener("click", loadLib);
   document.getElementById("lib-filter").addEventListener("input", () => renderTree(allFiles));
+  document.getElementById("lib-sort").addEventListener("change", () => renderTree(allFiles));
 
   loadLib();
 }
