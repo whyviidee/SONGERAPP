@@ -1,11 +1,11 @@
 # SONGER — Audit de Features
 
-> Última actualização: 2026-03-02 (v1.3.0)
-> Estado geral: **Funcional, em maturação**
+> Ultima actualização: 2026-03-03 (v1.4.0)
+> Estado geral: **Funcional, quase final**
 
 ---
 
-## FEATURES IMPLEMENTADAS ✅
+## FEATURES IMPLEMENTADAS
 
 ### Core — Downloads
 - [x] Parse URLs Spotify (playlist, album, track, artist)
@@ -15,142 +15,107 @@
 - [x] Modo híbrido — Soulseek primeiro, fallback YouTube
 - [x] Formatos: FLAC, MP3 320/256/128, raw fallback
 - [x] Embed metadata — ID3v2 (MP3), FLAC tags, cover art
-- [x] Organização automática: Artist/Album/Track
-- [x] Concorrência — ThreadPool (6 workers), UI não bloqueia
+- [x] Organização automática: Artist/Album/Title.ext
+- [x] Concorrência — ThreadPool (workers configuráveis), UI não bloqueia
 - [x] OAuth2 Spotify com cache de token
-
-### UI
-- [x] Dark theme estilo Spotify
-- [x] Sidebar navegação (Pesquisar, Playlists, Downloads, Biblioteca, Histórico)
-- [x] Search View — input URL ou texto, resultados dinâmicos
-- [x] Playlists View — load playlists do user
-- [x] Queue/Downloads View — fila em tempo real
-- [x] Library View — scan local Artist/Album
-- [x] History View — histórico persistente, re-download
-- [x] Bottom bar — stats + preview player + abrir pasta
-- [x] Settings dialog — Spotify, Soulseek, Download path, format, source
-- [x] FFmpeg setup wizard
-
-### Sistema
-- [x] ffmpeg bundled (imageio-ffmpeg)
-- [x] Logging centralizado (arquivo + console)
-- [x] Scoring inteligente ficheiros Soulseek (matcher)
-- [x] Persistência de histórico (max 200 entradas)
-- [x] AppState singleton — estado global partilhado via Qt signals
-
-### UX Polish (v1.1.0)
-- [x] Badge ● verde/vermelho na sidebar — estado Spotify em tempo real
-- [x] Banner onboarding na Search View quando Spotify não configurado
-- [x] Loading bar indeterminada ao pesquisar/carregar playlists
-- [x] Botão ✕ por track na fila — cancelar download individual
-- [x] Botão "Cancelar tudo" no header da view Downloads
-- [x] Windows toast notification quando batch de downloads termina
-
-### Web App v1.3.0
-- [x] Artist detail page — top tracks + discografia + header com imagem
-- [x] Album detail page — tracklist + "Download All" + header com capa
-- [x] Search limit 9 por categoria + "See all" com paginação
-- [x] Download state tracking — Play button para tracks já baixadas
-- [x] Persistent downloaded map (sobrevive restarts)
-- [x] Home: Quick Actions, Top Artists com fotos, Recommendations, Clear recent
-- [x] Soundwave loading animation ao mudar de tab
-- [x] Cover art auto-preenchida no histórico via Spotify search
-- [x] Stats: playlists count real do Spotify
-- [x] `_wireDownloadButtons()` partilhado em todas as views
-
-### Player + Home (v1.2.0)
-- [x] Home View — dashboard com saudação, quick actions, stats, histórico recente
-- [x] Player embutido — QMediaPlayer local com play/pause, stop, seek, volume, mute
-- [x] Badges Spotify/Soulseek na bottom bar
-- [x] Botão ▶ play em cada track da biblioteca e da fila
-- [x] Double-click em qualquer track para fazer play
-- [x] Stop button + volume slider + toggle mute no player
-- [x] Botão "Limpar" nos Recentes da Home
-- [x] Filtro por artista/nome na Biblioteca
 - [x] Verificação de duplicados antes de download
-- [x] Auto-scroll na fila de downloads
-- [x] Tooltips em todos os botões de ícone
-- [x] Rendering Windows — todos os caracteres Unicode problemáticos corrigidos
+- [x] Nome do ficheiro = título da música (artista/álbum nos metadados)
+
+### Web App — Pesquisa & Navegação
+- [x] Search multi-tipo — tracks, artistas, álbuns
+- [x] Paginação com "See all" e "Load more"
+- [x] Artist detail page — top tracks + discografia + header
+- [x] Album detail page — tracklist + "Download All" + header
+- [x] Nomes de artistas clicáveis em todas as views (navega para página do artista)
+- [x] "In Your Library" section na página de artista (mostra tracks que o user já tem)
+- [x] Recomendações personalizadas baseadas nas liked songs
+
+### Web App — Player
+- [x] Player embutido com play/pause, seek, volume, mute
+- [x] Preview 30s de qualquer track via Spotify (botão headphones)
+- [x] Double-click numa track faz play se já estiver downloaded
+- [x] Playlist queue com shuffle, next, previous, repeat
+- [x] Preview mode visual (borda verde, badge "PREVIEW", progress bar amber)
+- [x] Now Playing modal (botão queue) — mostra playlist actual
+- [x] Streaming de ficheiros locais via `/stream/` endpoint
+
+### Web App — Home
+- [x] Dashboard com stats (tracks, downloading, playlists, storage)
+- [x] Quick Actions (sync liked, import URL, open folder, pending downloads)
+- [x] Recently Downloaded — cards clicáveis (play/pause no click)
+- [x] Top Artists — clicáveis, navegam para página do artista no Spotify
+- [x] Recommendations — sugestões personalizadas com download buttons
+- [x] Clear history button
+
+### Web App — Library
+- [x] Scan recursivo da pasta de downloads
+- [x] Sort por: Recently Added (default), Artist A-Z, Year, Genre
+- [x] Filtro por artista ou nome da track
+- [x] Leitura de metadados (ano, género) via Mutagen
+- [x] Play button por track + double-click para play
+- [x] Reveal in Explorer por track
+- [x] Open Folder + Refresh buttons
+- [x] Agrupamento Artist → Album (ou Genre → Artist no modo genre)
+
+### Web App — Downloads & Queue
+- [x] Fila em tempo real via SSE (Server-Sent Events)
+- [x] Cancelar download individual ou todos
+- [x] Download state tracking — Play button para tracks já baixadas
+- [x] Persistent downloaded map (`~/.songer/downloaded_map.json`)
+- [x] Badge counter no sidebar (+1, +2...) em vez de toasts empilhados
+- [x] Reset Download Database nos Settings
+
+### Web App — UI/UX
+- [x] Dark theme
+- [x] Soundwave loading animation ao mudar de view
+- [x] Custom confirm modals (substituem browser confirm/prompt)
+- [x] Toast notifications
+- [x] Folder picker com opções (Music, Downloads, Desktop)
+- [x] Download path migration com legacy_paths support
+- [x] Onboarding modal no primeiro uso
+- [x] Status dots Spotify/Soulseek no sidebar
+- [x] Lucide icons em toda a interface
+
+### Desktop App (Legacy PyQt6)
+- [x] UI dark theme com 5 views
+- [x] Bottom bar com player QMediaPlayer
+- [x] Windows toast notifications (winotify)
+- [x] Build via PyInstaller → SONGER.exe
 
 ---
 
-## FEATURES EM FALTA / MELHORIAS ❌
+## FEATURES EM FALTA / MELHORIAS
 
-### UX — Alta Prioridade
-- [x] **Feedback visual no arranque** — badges Spotify/Soulseek na bottom bar, verificação em background ao arrancar
-- [x] **Mensagem de boas-vindas / onboarding** — banner na Search View quando Spotify não configurado
-- [x] **Notificação de download concluído** — Windows toast notification quando batch termina
-- [x] **Botão cancelar download individual** — botão ✕ por track na fila
-- [x] **Botão cancelar tudo / limpar fila** — botão "Cancelar tudo" no header de Downloads
-- [x] **Estado visual do Soulseek** — badge ● Sl na bottom bar (verde/cinza)
+### Download
+- [ ] Retomar downloads interrompidos (queue perde-se ao fechar)
+- [ ] Qualidade automática ("best available")
+- [ ] Download de artista completo (discografia)
+- [ ] Rate limiting / throttle
 
-### Pesquisa — Média Prioridade
-- [x] **Pesquisa de artistas** — página de artista com top tracks e discografia navegável
-- [x] **Paginação de resultados** — search paginado com "See all" e "Load more"
-- [x] **Preview de áudio funcional** — QMediaPlayer local a funcionar, play de ficheiros descarregados
-- [x] **Scroll para track a descarregar** — auto-scroll na fila ao adicionar nova track
+### Técnico
+- [ ] Testes automatizados
+- [ ] Ícone da aplicação
+- [ ] Auto-updater
+- [ ] Crash reporter
+- [ ] Modo portable (config junto ao .exe)
+- [ ] Changelog in-app
+- [ ] Keyboard shortcuts
 
-### Download — Média Prioridade
-- [ ] **Retomar downloads interrompidos** — se app fechar a meio, downloads perdem-se. Devia persistir queue.
-- [x] **Verificar duplicados** — verifica se ficheiro já existe antes de descarregar, skip automático.
-- [ ] **Qualidade automática** — modo "best available" que adapta formato ao que Soulseek encontra.
-- [ ] **Download de artista completo** — via URL artista, opção "Download discografia".
-- [ ] **Rate limiting / throttle** — sem controlo de velocidade de download.
+### Windows Específico
+- [ ] Associação de ficheiros (protocolo custom)
+- [ ] Inicializar com Windows
+- [ ] Tray icon
 
-### Biblioteca — Média Prioridade
-- [x] **Reprodutor integrado** — Library View com botão ▶ por track + double-click para play
-- [x] **Filtros na biblioteca** — filtro por artista ou nome em tempo real
-- [ ] **Contagem correcta de tracks** — Library pode não reflectir ficheiros novos sem re-scan manual.
-- [x] **Botão refresh scan** — botão "Atualizar" no header da biblioteca
-
-### Técnico — Baixa Prioridade
-- [ ] **Testes automatizados** — zero unit tests ou integration tests.
-- [ ] **Ícone da aplicação** — `icon=None` no spec. App sem ícone próprio.
-- [ ] **Auto-updater** — sem mecanismo de update automático.
-- [ ] **Crash reporter** — erros inesperados não são reportados de forma útil ao user.
-- [ ] **Modo portable** — config em `~/.songer/` — não funciona como app totalmente portable (config junto ao .exe).
-- [ ] **Changelog in-app** — sem "What's new" visível dentro da app.
-- [ ] **Keyboard shortcuts** — sem atalhos de teclado documentados ou implementados.
-
-### Windows Específico — Média Prioridade
-- [ ] **Integração com Windows Notifications** — usar Windows toast notifications nativas.
-- [ ] **Associação de ficheiros** — abrir `.songer` links directamente (protocolo custom).
-- [ ] **Inicializar com Windows** — opção de startup automático.
-- [ ] **Tray icon** — minimizar para system tray em vez de fechar.
+### Visual
+- [ ] Progress bar global na bottom bar
+- [ ] Modo fullscreen
+- [ ] Tamanho mínimo da janela (desktop)
 
 ---
 
-## BUGS CONHECIDOS 🐛
+## BUGS CONHECIDOS
 
-- [ ] **Preview player no Windows** — QMediaPlayer pode requerer codecs adicionais (K-Lite ou Windows Media codecs). A testar.
-- [ ] **ffmpeg PATH no Windows** — se user tem ffmpeg no PATH do sistema, pode conflituar com o bundled.
-- [ ] **Soulseek timeout** — se slskd não responde, app pode ficar bloqueada em polling sem timeout claro.
-- [ ] **Token Spotify expira silenciosamente** — em alguns casos o refresh falha sem indicar ao user.
-- [ ] **Unicode em paths Windows** — artistas com caracteres especiais (japonês, árabe) podem falhar ao criar pastas.
-
----
-
-## MELHORIAS VISUAIS 🎨
-
-- [x] **Animações de loading** — soundwave animation ao mudar de tab enquanto carrega dados.
-- [ ] **Progress bar global** — barra de progresso geral na bottom bar (ex: "3/10 tracks feitas").
-- [ ] **Cores de status** — verde/amarelo/vermelho mais consistentes nas tracks da fila.
-- [ ] **Modo fullscreen** — app não tira partido de ecrãs grandes.
-- [ ] **Tamanho mínimo da janela** — resize pode quebrar layout em janelas pequenas.
-
----
-
-## PRIORIDADE DE IMPLEMENTAÇÃO
-
-| # | Feature | Impacto | Esforço |
-|---|---------|---------|---------|
-| 1 | Feedback estado Spotify na UI | Alto | Baixo |
-| 2 | Onboarding primeiro uso | Alto | Baixo |
-| 3 | Notificação download concluído | Alto | Baixo |
-| 4 | Cancelar download individual/todos | Alto | Médio |
-| 5 | Verificar duplicados antes de download | Alto | Médio |
-| 6 | Retomar queue após fechar app | Médio | Alto |
-| 7 | Tray icon Windows | Médio | Médio |
-| 8 | Ícone da aplicação | Baixo | Baixo |
-| 9 | Filtros na biblioteca | Médio | Médio |
-| 10 | Testes automatizados | Alto (long term) | Alto |
+- [ ] ffmpeg PATH no Windows pode conflituar com o bundled
+- [ ] Soulseek timeout — se slskd não responde, polling sem timeout claro
+- [ ] Token Spotify expira silenciosamente em alguns casos
+- [ ] YouTube search ocasionalmente apanha o vídeo errado

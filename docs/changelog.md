@@ -1,72 +1,81 @@
 # SONGER — Changelog
 
-## v1.3.0 — Web App: Artist/Album Pages, Smart Home, Download State (2026-03-02)
+## v1.4.0 — UX Upgrade: Preview, Artists, Queue Modal, Library Sort (2026-03-03)
 ### Adicionado
-- **Artist detail page** — top tracks, discografia, header com imagem/géneros/followers
-- **Album detail page** — tracklist, "Download All", header com capa/artista/ano
-- **Search limit 9** — max 9 resultados por categoria, "See all" com paginação
-- **Download state tracking** — botão Play em vez de Download para tracks já baixadas (todas as views)
-- **Persistent downloaded map** — `~/.songer/downloaded_map.json` sobrevive restarts
-- **Home: Quick Actions** — sync liked, import URL, open folder, pending downloads
-- **Home: Top Artists** — artistas mais frequentes na biblioteca com fotos do Spotify
-- **Home: Recommendations** — sugestões baseadas nas liked songs do user (Spotify API)
-- **Home: Clear recent** — botão para limpar histórico de downloads recentes
-- **Soundwave loading animation** — animação de barras ao mudar de tab
-- **Cover art in history** — capas auto-preenchidas via Spotify search para histórico antigo
-- **Playlists count real** — stats mostra número real de playlists do Spotify
+- **Preview 30s** — botão headphones em cada track para ouvir preview do Spotify antes de download
+- **Artistas clicáveis** — nomes de artistas são links em todas as views (navega para página do artista)
+- **Now Playing modal** — botão queue abre modal com playlist actual (em vez de ir para downloads)
+- **Custom modals** — todas as confirmações usam modais bonitos em vez de `confirm()`/`prompt()` do browser
+- **Library sort** — sort por Recently Added (default), Artist A-Z, Year, Genre
+- **Metadata library** — scan lê ano e género dos ficheiros via Mutagen
+- **Download badge** — contador no sidebar (+1, +2...) em vez de toasts empilhados
+- **Recently Downloaded playable** — cards na home fazem play/pause ao clicar
+- **Top Artists clickable** — navega para página do artista no Spotify
+- **"In Your Library"** — página de artista mostra tracks que o user já tem localmente
+- **Reset Download Database** — botão nos Settings para limpar tracking (ficheiros não são apagados)
+- **Folder picker** — modal com opções de pasta (Music, Downloads, Desktop) usando paths do server
+- **Path migration** — ao mudar download path, opção de manter ambos os paths ou só o novo
+- **Player preview mode** — borda verde, badge "PREVIEW", progress bar amber, shuffle/next/prev/repeat
 
 ### Corrigido
-- Download buttons não passavam `cover` — histórico ficava sem capas
-- Artist/Album views não mostravam estado de download (missing `await`)
-- Liked Songs e Playlists usavam formato de dados próprio — unificado com `_wireDownloadButtons`
-- Stats "playlists synced" mostrava 0 — agora conta playlists reais do Spotify
+- Nome dos ficheiros agora é só o título da música (artista/álbum vão nos metadados)
+- Double-click numa track só faz play se o ficheiro existir localmente
+- Confirm modal centrado com flex-wrap nos botões
+- Browse folder era lento (timeout do API) — agora abre modal instantâneo
 
-### Backend
-- `core/spotify.py`: `get_album()`, `search_type()`, `get_recommendations()`
-- `server.py`: 5 novos endpoints (`/api/artist/<id>`, `/api/album/<id>`, `/api/search/<type>`, `/api/downloaded-ids`, `/api/recommendations`)
-- `_wireDownloadButtons()` extraído para `api.js` como utility partilhado
+---
+
+## v1.3.0 — Web App: Artist/Album Pages, Smart Home, Download State (2026-03-02)
+### Adicionado
+- Artist detail page — top tracks, discografia, header com imagem/géneros/followers
+- Album detail page — tracklist, "Download All", header com capa/artista/ano
+- Search limit 9 por categoria + "See all" com paginação
+- Download state tracking — Play button para tracks já baixadas
+- Persistent downloaded map (`~/.songer/downloaded_map.json`)
+- Home: Quick Actions, Top Artists com fotos, Recommendations, Clear recent
+- Soundwave loading animation ao mudar de tab
+- Cover art auto-preenchida no histórico via Spotify search
+- Stats: playlists count real do Spotify
+
+### Corrigido
+- Download buttons não passavam `cover`
+- Artist/Album views não mostravam estado de download
+- Liked Songs e Playlists usavam formato de dados diferente — unificado com `_wireDownloadButtons`
 
 ---
 
 ## v1.2.0 — Player + Home + Rendering (2026-03-02)
 ### Adicionado
-- Home View — dashboard com saudação, quick actions, stats da biblioteca, histórico recente
-- Player embutido na bottom bar — QMediaPlayer local (play/pause, stop, seek, volume, mute)
-- Badges Spotify/Soulseek movidos para a bottom bar (libertar sidebar)
-- Botão ▶ em cada track da fila e da biblioteca — play directo
-- Double-click em qualquer track para fazer play
-- Botão ■ Stop + slider de volume + toggle mute (🔊/🔇) no player
-- Botão "Limpar" nos Recentes da Home
-- Botão ▶ no histórico para recarregar playlist na pesquisa
+- Home View — dashboard com saudação, quick actions, stats, histórico recente
+- Player embutido — QMediaPlayer local (play/pause, stop, seek, volume, mute)
+- Badges Spotify/Soulseek na bottom bar
+- Botão play em cada track da biblioteca e da fila
+- Double-click em qualquer track para play
 - Filtro por artista/nome na Biblioteca
-- Verificação de duplicados antes de download (skip se ficheiro já existe)
-- Auto-scroll na fila quando nova track é adicionada
-- Soulseek badge e estado ligado ao AppState
+- Verificação de duplicados antes de download
+- Auto-scroll na fila de downloads
 - Tooltips em todos os botões de ícone
 
 ### Corrigido
-- Logo "SONGER" cortado — badges removidas da sidebar
-- Caracteres Unicode que não renderizavam no Windows: `↻ ⟳ ⟲ ⏹ ⏸ ⬇` substituídos por alternativas compatíveis
-- Spinner da fila agora usa `| / - \` (ASCII garantido)
-- Botões ▶ circulares com font-size demasiado pequeno (9-10px) — aumentado para 13px
-- Botão stop agora mostra `■` em vez de `⏹`
-- Botão pause agora mostra `II` em vez de `⏸`
+- Caracteres Unicode que não renderizavam no Windows
+- Spinner da fila usa ASCII garantido
+- Botões circulares com font-size pequeno
 
 ---
 
 ## v1.1.0 — UX Polish (2026-03-02)
 ### Adicionado
-- `core/app_state.py` — AppState singleton QObject para estado global partilhado
-- Badge ● verde/vermelho junto ao logo SONGER (estado Spotify em tempo real)
-- Banner onboarding na Search View quando Spotify não configurado
-- Barra de loading indeterminada ao pesquisar/carregar playlists
-- Botão ✕ por track na fila — cancelar download individual
-- Botão "Cancelar tudo" no header da view Downloads
-- Windows toast notification quando batch termina (winotify 1.1.0)
+- AppState singleton para estado global partilhado
+- Badge verde/vermelho na sidebar (estado Spotify em tempo real)
+- Banner onboarding na Search View
+- Loading bar indeterminada ao pesquisar/carregar
+- Botão cancelar download individual
+- Botão "Cancelar tudo" no header Downloads
+- Windows toast notification quando batch termina
 
 ---
 
-## v1.0.0 — Estado Actual (2026-03-02)
+## v1.0.0 — First Release (2026-03-02)
 ### Implementado
 - App desktop Windows completa com PyQt6
 - Integração Spotify (OAuth2, search, playlists, albums, artistas)
@@ -74,9 +83,8 @@
 - Modo híbrido Soulseek → fallback YouTube
 - Formatos: FLAC, MP3 320/256/128
 - Metadata embed (ID3v2, FLAC tags, cover art)
-- UI dark theme com 5 views (Pesquisar, Playlists, Downloads, Biblioteca, Histórico)
-- Bottom bar com preview player Spotify e abrir pasta
+- UI dark theme com 5 views
 - Settings dialog completo
 - ffmpeg bundled via imageio-ffmpeg
 - Logging centralizado
-- Build Windows via PyInstaller → SONGER.exe
+- Build Windows via PyInstaller
