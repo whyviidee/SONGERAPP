@@ -3,7 +3,6 @@ import json
 import time
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from html import unescape
 from pathlib import Path
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -15,7 +14,7 @@ from core.app_state import AppState
 
 log = get_logger("spotify")
 
-SCOPES = "user-library-read playlist-read-private playlist-read-collaborative"
+SCOPES = "user-library-read user-read-private playlist-read-private playlist-read-collaborative"
 CACHE_PATH = Path.home() / ".songer" / ".spotify_token.json"
 REDIRECT_URI = "https://open.spotify.com"
 
@@ -97,6 +96,16 @@ class SpotifyClient:
             return True
         except Exception:
             return False
+
+    def _get_user_market(self) -> str:
+        """Retorna o país do user (ex: 'PT', 'MZ') para o param market."""
+        if not self._sp:
+            return ""
+        try:
+            user = self._sp.current_user()
+            return user.get("country", "")
+        except Exception:
+            return ""
 
     def has_saved_token(self) -> bool:
         return CACHE_PATH.exists()
@@ -314,57 +323,56 @@ class SpotifyClient:
             return self.get_artist_top_tracks(id_)
         raise ValueError(f"Tipo desconhecido: {kind}")
 
+    def _extract_paging_tracks(self, results: dict) -> list[dict]:
+        """Extrai tracks de um paging object, com paginação."""
+        tracks = []
+        while results:
+            for item in (results.get("items") or []):
+                t = item.get("track") if "track" in item else item
+                if not t or not t.get("id") or t.get("type") != "track":
+                    continue
+                try:
+                    tracks.append(self._parse_track(t))
+                except Exception:
+                    continue
+            if results.get("next"):
+                try:
+                    results = self._sp.next(results)
+                except Exception:
+                    break
+            else:
+                break
+        return tracks
+
     def _playlist_tracks(self, playlist_id: str):
         tracks = []
         name = "Playlist"
+        market = self._get_user_market()
 
         # Estratégia 1: playlist() completo
         try:
-            data = self._sp.playlist(playlist_id, additional_types=("track",))
+            kwargs = {"additional_types": ("track",)}
+            if market:
+                kwargs["market"] = market
+            data = self._sp.playlist(playlist_id, **kwargs)
             name = data.get("name", "Playlist")
-            results = data.get("tracks") or {}
+            # Spotify migra de "tracks" para "items" — verificar ambos
+            results = data.get("tracks") or data.get("items") or {}
             items_count = len(results.get("items") or [])
             log.info(f"[PLAYLIST] '{name}': {items_count} items inline")
             if items_count > 0:
-                while True:
-                    for item in (results.get("items") or []):
-                        t = item.get("track")
-                        if not t or not t.get("id") or t.get("type") != "track":
-                            continue
-                        try:
-                            tracks.append(self._parse_track(t))
-                        except Exception:
-                            continue
-                    if results.get("next"):
-                        try:
-                            results = self._sp.next(results)
-                        except Exception:
-                            break
-                    else:
-                        break
+                tracks = self._extract_paging_tracks(results)
         except Exception as e:
             log.warning(f"[PLAYLIST] playlist() falhou: {e}")
 
         # Estratégia 2: playlist_items() fallback
         if not tracks:
             try:
-                results = self._sp.playlist_items(playlist_id, limit=50, additional_types=("track",))
-                while results:
-                    for item in (results.get("items") or []):
-                        t = item.get("track")
-                        if not t or not t.get("id") or t.get("type") != "track":
-                            continue
-                        try:
-                            tracks.append(self._parse_track(t))
-                        except Exception:
-                            continue
-                    if results.get("next"):
-                        try:
-                            results = self._sp.next(results)
-                        except Exception:
-                            break
-                    else:
-                        break
+                kwargs2 = {"limit": 50, "additional_types": ("track",)}
+                if market:
+                    kwargs2["market"] = market
+                results = self._sp.playlist_items(playlist_id, **kwargs2)
+                tracks = self._extract_paging_tracks(results)
             except Exception as e:
                 log.warning(f"[PLAYLIST] playlist_items falhou (esperado em Dev Mode): {e}")
 
@@ -461,59 +469,48 @@ class SpotifyClient:
 
         html = resp.text
 
-        # Sub-strategy A: regex para track IDs no HTML
-        track_ids = self._embed_extract_ids(html)
+        # Extrair __NEXT_DATA__ JSON (fonte principal de dados estruturados)
+        next_data = self._embed_parse_next_data(html)
+
+        # Strategy A: IDs do __NEXT_DATA__ → batch fetch (rápido se API permitir)
+        if next_data:
+            track_ids = self._embed_extract_ids_from_data(next_data)
+            if track_ids:
+                log.info(f"[EMBED] Strategy A: {len(track_ids)} IDs, a tentar batch fetch...")
+                tracks = self._batch_fetch_tracks(track_ids)
+                if tracks:
+                    return tracks
+
+        # Strategy B: nomes/artistas do __NEXT_DATA__ → parallel search
+        if next_data:
+            entries = self._embed_extract_names_from_data(next_data)
+            if entries:
+                log.info(f"[EMBED] Strategy B: {len(entries)} tracks com nome/artista, a pesquisar...")
+                return self._parallel_search_tracks(entries)
+
+        # Strategy C: regex fallback no HTML para IDs
+        track_ids = self._embed_extract_ids_regex(html)
         if track_ids:
-            log.info(f"[EMBED] Strategy A: {len(track_ids)} IDs extraídos via regex")
+            log.info(f"[EMBED] Strategy C: {len(track_ids)} IDs via regex")
             tracks = self._batch_fetch_tracks(track_ids)
             if tracks:
                 return tracks
 
-        # Sub-strategy B: parse __NEXT_DATA__ JSON
-        track_ids = self._embed_extract_next_data(html)
-        if track_ids:
-            log.info(f"[EMBED] Strategy B: {len(track_ids)} IDs extraídos via __NEXT_DATA__")
-            tracks = self._batch_fetch_tracks(track_ids)
-            if tracks:
-                return tracks
-
-        # Sub-strategy C: nomes/artistas do HTML → parallel search
-        entries = self._embed_extract_names(html)
-        if entries:
-            log.info(f"[EMBED] Strategy C: {len(entries)} entries extraídas, a pesquisar...")
-            return self._parallel_search_tracks(entries)
-
-        log.warning("[EMBED] Nenhuma sub-strategy funcionou")
+        log.warning("[EMBED] Nenhuma strategy funcionou")
         return []
 
-    def _embed_extract_ids(self, html: str) -> list[str]:
-        """Extrai track IDs do HTML do embed via regex."""
-        patterns = [
-            r'spotify:track:([a-zA-Z0-9]{22})',
-            r'/track/([a-zA-Z0-9]{22})',
-            r'"id"\s*:\s*"([a-zA-Z0-9]{22})"',
-        ]
-        seen = set()
-        ids = []
-        for pat in patterns:
-            for m in re.finditer(pat, html):
-                tid = m.group(1)
-                if tid not in seen:
-                    seen.add(tid)
-                    ids.append(tid)
-        return ids
-
-    def _embed_extract_next_data(self, html: str) -> list[str]:
-        """Extrai track IDs do __NEXT_DATA__ JSON embutido no embed."""
+    def _embed_parse_next_data(self, html: str) -> dict | None:
+        """Parse do __NEXT_DATA__ JSON do embed."""
         m = re.search(r'<script\s+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
         if not m:
-            return []
+            return None
         try:
-            data = json.loads(m.group(1))
+            return json.loads(m.group(1))
         except (json.JSONDecodeError, ValueError):
-            return []
+            return None
 
-        # Percorrer recursivamente o JSON à procura de URIs/IDs
+    def _embed_extract_ids_from_data(self, data: dict) -> list[str]:
+        """Extrai track IDs do __NEXT_DATA__ JSON."""
         seen = set()
         ids = []
 
@@ -533,36 +530,72 @@ class SpotifyClient:
         walk(data)
         return ids
 
-    def _embed_extract_names(self, html: str) -> list[dict]:
-        """Extrai nomes de tracks e artistas do HTML do embed."""
-        # Strip tags para texto limpo
-        text = re.sub(r'<[^>]+>', '\n', html)
-        text = unescape(text)
-
-        # Padrão: linhas com "Título • Artista" ou numbered entries
+    def _embed_extract_names_from_data(self, data: dict) -> list[dict]:
+        """Extrai nomes e artistas de tracks do __NEXT_DATA__ JSON."""
         entries = []
         seen = set()
 
-        # Pattern 1: "track title" seguido de artista (embed format varies)
-        for m in re.finditer(
-            r'(?:^|\n)\s*(?:\d+\s+)?(.+?)(?:\s*[•·—\-]\s*|\s+by\s+)(.+?)(?:\s+\d+:\d+)?\s*(?:\n|$)',
-            text
-        ):
-            title = m.group(1).strip()
-            artist = m.group(2).strip()
-            if title and artist and len(title) > 1 and len(title) < 200:
-                key = f"{title.lower()}|{artist.lower()}"
-                if key not in seen:
-                    seen.add(key)
-                    entries.append({"title": title, "artist": artist})
+        def walk(obj):
+            if isinstance(obj, dict):
+                # Detectar objectos track: têm "uri" com spotify:track e "title"/"name"
+                uri = obj.get("uri", "")
+                is_track = "spotify:track:" in uri
+                title = obj.get("title") or obj.get("name") or ""
+                if is_track and title:
+                    # Extrair artistas — pode ser lista de objectos ou string
+                    artist = ""
+                    artists_raw = obj.get("artists") or obj.get("subtitle") or ""
+                    if isinstance(artists_raw, list):
+                        names = []
+                        for a in artists_raw:
+                            if isinstance(a, dict):
+                                names.append(a.get("name", ""))
+                            elif isinstance(a, str):
+                                names.append(a)
+                        artist = ", ".join(n for n in names if n)
+                    elif isinstance(artists_raw, str):
+                        artist = artists_raw
+                    if not artist:
+                        artist = obj.get("artist", "")
+                    if title and artist:
+                        key = f"{title.lower()}|{artist.lower()}"
+                        if key not in seen:
+                            seen.add(key)
+                            entries.append({"title": title, "artist": artist})
+                    elif title:
+                        key = title.lower()
+                        if key not in seen:
+                            seen.add(key)
+                            entries.append({"title": title, "artist": ""})
+                for v in obj.values():
+                    walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    walk(v)
 
+        walk(data)
         return entries
 
+    def _embed_extract_ids_regex(self, html: str) -> list[str]:
+        """Fallback: extrai track IDs do HTML via regex."""
+        patterns = [
+            r'spotify:track:([a-zA-Z0-9]{22})',
+            r'/track/([a-zA-Z0-9]{22})',
+        ]
+        seen = set()
+        ids = []
+        for pat in patterns:
+            for m in re.finditer(pat, html):
+                tid = m.group(1)
+                if tid not in seen:
+                    seen.add(tid)
+                    ids.append(tid)
+        return ids
+
     def _batch_fetch_tracks(self, track_ids: list[str]) -> list[dict]:
-        """Batch fetch de tracks por ID (50 de cada vez)."""
+        """Batch fetch de tracks por ID. Falha rápido no primeiro 403."""
         sp = self._sp or self._get_public_sp()
         tracks = []
-        # sp.tracks() aceita max 50 IDs
         for i in range(0, len(track_ids), 50):
             batch = track_ids[i:i + 50]
             try:
@@ -571,6 +604,9 @@ class SpotifyClient:
                     if t and t.get("id"):
                         tracks.append(self._parse_track(t))
             except Exception as e:
+                if "403" in str(e):
+                    log.info(f"[EMBED] batch fetch 403 — endpoint bloqueado em Dev Mode")
+                    return []  # Falha rápido, não tenta mais batches
                 log.warning(f"[EMBED] batch fetch falhou (batch {i}): {e}")
         log.info(f"[EMBED] Batch fetch: {len(tracks)}/{len(track_ids)} tracks")
         return tracks
@@ -581,14 +617,22 @@ class SpotifyClient:
         tracks = [None] * len(entries)
 
         def search_one(idx: int, entry: dict):
-            q = f"track:{entry['title']} artist:{entry['artist']}"
+            title = entry["title"]
+            artist = entry.get("artist", "")
+            if artist:
+                q = f"track:{title} artist:{artist}"
+            else:
+                q = f"track:{title}"
+            # Spotify search query max 250 chars
+            if len(q) > 240:
+                q = q[:240]
             try:
                 res = sp.search(q=q, limit=1, type="track")
                 items = res.get("tracks", {}).get("items") or []
                 if items:
                     return idx, self._parse_track(items[0])
             except Exception as e:
-                log.debug(f"[EMBED] search falhou para '{entry['title']}': {e}")
+                log.debug(f"[EMBED] search falhou para '{title}': {e}")
             return idx, None
 
         workers = min(8, len(entries))

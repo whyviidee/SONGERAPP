@@ -33,7 +33,7 @@ app = Flask(__name__, template_folder="web", static_folder="web/static")
 app.secret_key = "songer-setup-key"
 
 REDIRECT_URI = "http://127.0.0.1:8888/callback"
-SCOPES = "user-library-read playlist-read-private playlist-read-collaborative"
+SCOPES = "user-library-read user-read-private playlist-read-private playlist-read-collaborative"
 CONFIG_PATH = Path.home() / ".songer" / "config.json"
 TOKEN_PATH = Path.home() / ".songer" / ".spotify_token.json"
 
