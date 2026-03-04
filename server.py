@@ -1131,6 +1131,56 @@ def stream_file(filepath):
 
 
 # ------------------------------------------------------------------
+# Trending Tracks (hidden feature)
+# ------------------------------------------------------------------
+
+_TRENDING_DIR = Path(__file__).parent / "tools" / "trending"
+
+_TRENDING_LABELS = {
+    "portugal-top50":        "🇵🇹 Portugal Top 50",
+    "funk-brasil":           "🇧🇷 Funk Brasil",
+    "reggaeton":             "🎤 Reggaeton",
+    "house":                 "🎛️ House Music",
+    "amapiano":              "🥁 Amapiano",
+    "afro-house-electronic": "⚡ Afro House — Electrónico",
+    "afro-house-african":    "🌍 Afro House — Africano",
+    "underground-remixes":   "🔊 Underground Remixes",
+}
+
+import re as _re
+
+def _parse_trending_md(path: Path) -> list:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception:
+        return []
+    pattern = _re.compile(
+        r'^- (.+?) — (.+?)\s*\n\s*\[(Spotify|SoundCloud)\]\((https?://[^\)]+)\)',
+        _re.MULTILINE,
+    )
+    tracks = []
+    for m in pattern.finditer(text):
+        tracks.append({
+            "artist": m.group(1).strip(),
+            "title":  m.group(2).strip(),
+            "source": m.group(3),
+            "url":    m.group(4).strip(),
+        })
+    return tracks
+
+
+@app.route("/api/trending")
+def api_trending():
+    categories = []
+    for key, label in _TRENDING_LABELS.items():
+        md_path = _TRENDING_DIR / f"{key}.md"
+        if md_path.exists():
+            tracks = _parse_trending_md(md_path)
+            categories.append({"key": key, "label": label, "tracks": tracks})
+    return jsonify(categories)
+
+
+# ------------------------------------------------------------------
 # Entry point
 # ------------------------------------------------------------------
 

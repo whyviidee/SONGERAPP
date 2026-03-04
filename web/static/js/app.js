@@ -11,6 +11,7 @@ const VIEWS = {
   library: renderLibrary,
   history: renderHistory,
   faq: renderFaq,
+  trending: renderTrending,
 };
 
 window.APP = {
@@ -253,6 +254,14 @@ document.getElementById("ob-save").addEventListener("click", async () => {
     toast("Setup complete! You're ready to download music.", "success");
   } catch (e) {
     toast("Could not save settings", "error");
+  }
+});
+
+// Ctrl+Shift+T → Trending (hidden)
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey && e.shiftKey && e.key === "T") {
+    e.preventDefault();
+    APP.navigate("trending");
   }
 });
 

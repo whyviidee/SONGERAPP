@@ -26,6 +26,7 @@ from ui.views.playlists_view import PlaylistsView
 from ui.views.queue_view import QueueView
 from ui.views.library_view import LibraryView
 from ui.views.history_view import HistoryView
+from ui.views.trending_view import TrendingView
 
 log = get_logger("ui")
 
@@ -101,6 +102,7 @@ class MainWindow(QMainWindow):
         self._queue_view = QueueView()
         self._library_view = LibraryView(self._config)
         self._history_view = HistoryView()
+        self._trending_view = TrendingView()
 
         self._stack.addWidget(self._home_view)         # 0
         self._stack.addWidget(self._search_view)       # 1
@@ -108,6 +110,7 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(self._queue_view)        # 3
         self._stack.addWidget(self._library_view)      # 4
         self._stack.addWidget(self._history_view)      # 5
+        self._stack.addWidget(self._trending_view)     # 6
 
         top_layout.addWidget(self._sidebar)
         top_layout.addWidget(self._stack, stretch=1)
@@ -145,6 +148,9 @@ class MainWindow(QMainWindow):
         # Library play
         self._library_view.play_file.connect(self._on_play_file)
 
+        # Trending → search
+        self._trending_view.open_url.connect(self._open_playlist_url)
+
         # Cancel signals
         self._queue_view.cancel_track.connect(self._on_cancel_track)
         self._queue_view.cancel_all.connect(self._on_cancel_all)
@@ -161,6 +167,7 @@ class MainWindow(QMainWindow):
             "queue": 3,
             "library": 4,
             "history": 5,
+            "trending": 6,
         }
 
         if key == "settings":
@@ -183,6 +190,8 @@ class MainWindow(QMainWindow):
             self._library_view.refresh()
         elif key == "history":
             self._history_view.refresh()
+        elif key == "trending":
+            self._trending_view.refresh()
 
     def _check_spotify_on_startup(self):
         """Verifica estado Spotify em background ao arrancar."""
@@ -416,6 +425,19 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         return "mp3_320"
+
+    # ------------------------------------------------------------------
+    # Keyboard shortcuts
+    # ------------------------------------------------------------------
+
+    def keyPressEvent(self, event):
+        from PyQt6.QtCore import Qt
+        if (event.key() == Qt.Key.Key_T
+                and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)):
+            self._stack.setCurrentIndex(6)
+            self._trending_view.refresh()
+            return
+        super().keyPressEvent(event)
 
     # ------------------------------------------------------------------
     # Close

@@ -856,3 +856,20 @@ input[type=range]::-webkit-slider-thumb {
 /* ── Queue modal active track ── */
 .queue-modal-active { background: var(--accent-dim) !important; }
 .queue-modal-active .track-name { color: var(--accent) !important; }
+
+/* ── Trending view ── */
+.trending-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  border-radius: 6px; transition: background 0.1s;
+}
+.trending-row:hover { background: var(--surface); }
+.trending-num { color: var(--text-3); font-size: 11px; width: 24px; text-align: right; flex-shrink: 0; }
+.trending-info { flex: 1; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.trending-artist { color: var(--text-1); font-weight: 600; }
+.trending-sep { color: var(--text-3); }
+.trending-title { color: var(--text-2); }
+.trending-src { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; flex-shrink: 0; }
+.trending-src.spotify { background: #1db95422; color: #1db954; }
+.trending-src.soundcloud { background: #ff550022; color: #ff5500; }
+.trending-search-btn { flex-shrink: 0; }
