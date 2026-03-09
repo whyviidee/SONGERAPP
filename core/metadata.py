@@ -32,7 +32,7 @@ def _fetch_cover(url: str) -> bytes:
 
 def _embed_mp3(path: Path, track: dict, cover_data: bytes):
     from mutagen.id3 import (
-        ID3, ID3NoHeaderError, TIT2, TPE1, TALB, TPE2, TDRC, TRCK, TPOS, APIC
+        ID3, ID3NoHeaderError, TIT2, TPE1, TALB, TPE2, TDRC, TRCK, TPOS, APIC, TCON
     )
     try:
         tags = ID3(str(path))
@@ -46,6 +46,8 @@ def _embed_mp3(path: Path, track: dict, cover_data: bytes):
     tags["TDRC"] = TDRC(encoding=3, text=track.get("year", ""))
     tags["TRCK"] = TRCK(encoding=3, text=str(track.get("track_number", 1)))
     tags["TPOS"] = TPOS(encoding=3, text=str(track.get("disc_number", 1)))
+    if track.get("genre"):
+        tags["TCON"] = TCON(encoding=3, text=track["genre"])
 
     if cover_data:
         tags.delall("APIC")
@@ -71,6 +73,8 @@ def _embed_flac(path: Path, track: dict, cover_data: bytes):
     audio["date"] = track.get("year", "")
     audio["tracknumber"] = str(track.get("track_number", 1))
     audio["discnumber"] = str(track.get("disc_number", 1))
+    if track.get("genre"):
+        audio["genre"] = track["genre"]
 
     if cover_data:
         pic = Picture()
@@ -93,4 +97,6 @@ def _embed_ogg(path: Path, track: dict, cover_data: bytes):
     audio["albumartist"] = track.get("album_artist", "")
     audio["date"] = track.get("year", "")
     audio["tracknumber"] = str(track.get("track_number", 1))
+    if track.get("genre"):
+        audio["genre"] = track["genre"]
     audio.save()

@@ -31,9 +31,14 @@ async function renderAlbum(params = {}) {
             ${album.year ? ` · ${album.year}` : ""}
             ${album.total_tracks ? ` · ${album.total_tracks} tracks` : ""}
           </div>
-          <button class="btn-primary" id="album-download-all" style="margin-top:12px">
-            <i data-lucide="download" width="14" height="14"></i> Download All
-          </button>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn-primary" id="album-download-all">
+              <i data-lucide="download" width="14" height="14"></i> Download All
+            </button>
+            <button class="btn-sm" id="album-download-zip" style="height:36px;font-size:12px">
+              <i data-lucide="archive" width="14" height="14"></i> Download ZIP
+            </button>
+          </div>
         </div>
       </div>
 
@@ -93,6 +98,15 @@ async function renderAlbum(params = {}) {
       btn.innerHTML = `<i data-lucide="check" width="14" height="14"></i> ${added} queued`;
       lucide.createIcons();
       toast(`${added} tracks added to queue`, "success");
+    });
+
+    // Download ZIP
+    document.getElementById("album-download-zip").addEventListener("click", () => {
+      zipFlow(
+        document.getElementById("album-download-zip"),
+        tracks.map(t => ({ id: t.id, name: t.name, artist: t.artist, album: t.album, cover: t.cover || "" })),
+        album.name,
+      );
     });
 
     // Individual download buttons + artist links + preview

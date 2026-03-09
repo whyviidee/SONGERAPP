@@ -576,6 +576,7 @@ def _run_download(job_id: str, track: dict):
             "album": track.get("album", ""),
             "cover_url": track.get("cover", ""),
             "uri": track.get("uri", ""),
+            "genre": track.get("genre", ""),
         }
 
         cfg = _load_config()
@@ -1007,6 +1008,90 @@ def api_liked_songs():
         return jsonify({"error": str(e)}), 500
 
 
+def _run_zip_job_tracks(job_id: str, tracks: list, name: str):
+    """Generic zip job — takes a pre-built list of track dicts."""
+    import tempfile
+    import zipfile
+    import re
+    import shutil
+
+    def safe_name(s):
+        return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s).strip()[:80] or "download"
+
+    j = _zip_jobs[job_id]
+    try:
+        j["status"] = "downloading"
+        j["total"] = len(tracks)
+        _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading"})
+
+        cfg = _load_config()
+        fmt = cfg.get("download", {}).get("format", "mp3_320")
+        safe_n = safe_name(name)
+        tmp_dir = Path(tempfile.mkdtemp(prefix="songer_zip_"))
+
+        from core.youtube import YouTubeClient
+        yt = YouTubeClient()
+
+        downloaded = []
+        from core.metadata import embed_metadata
+        for i, track in enumerate(tracks):
+            t = {
+                "id": track.get("id", ""),
+                "title": track.get("title") or track.get("name", "Unknown"),
+                "artist": track.get("artist", ""),
+                "album": track.get("album", ""),
+                "cover_url": track.get("cover_url") or track.get("cover", ""),
+                "genre": track.get("genre", ""),
+                "track_number": i + 1,
+            }
+            try:
+                path = yt.download(t, tmp_dir, fmt)
+                if path and path.exists():
+                    try:
+                        embed_metadata(path, t)
+                    except Exception:
+                        pass
+                    downloaded.append(path)
+            except Exception:
+                pass
+            j["done"] = i + 1
+            j["progress"] = int((i + 1) / len(tracks) * 85)
+            _sse_push({"type": "zip_update", "job_id": job_id, "progress": j["progress"], "done": j["done"], "total": j["total"]})
+
+        zip_path = tmp_dir.parent / f"{safe_n}.zip"
+        with zipfile.ZipFile(str(zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
+            for f in downloaded:
+                zf.write(str(f), arcname=f"{safe_n}/{f.name}")
+
+        shutil.rmtree(str(tmp_dir), ignore_errors=True)
+
+        j["status"] = "done"
+        j["progress"] = 100
+        j["zip_path"] = str(zip_path)
+        _sse_push({"type": "zip_update", "job_id": job_id, "status": "done", "progress": 100})
+
+    except Exception as e:
+        j["status"] = "error"
+        j["error"] = str(e)
+        _sse_push({"type": "zip_update", "job_id": job_id, "status": "error", "error": str(e)})
+
+
+@app.route("/api/zip/tracks", methods=["POST"])
+def api_zip_tracks():
+    data = request.get_json() or {}
+    tracks = data.get("tracks", [])
+    name = data.get("name", "download")
+    if not tracks:
+        return jsonify({"error": "tracks required"}), 400
+    job_id = str(uuid.uuid4())
+    _zip_jobs[job_id] = {
+        "id": job_id, "status": "pending", "progress": 0,
+        "total": len(tracks), "done": 0, "zip_path": "", "error": "", "name": name,
+    }
+    threading.Thread(target=_run_zip_job_tracks, args=(job_id, tracks, name), daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
 @app.route("/api/playlists/<playlist_id>/zip", methods=["POST"])
 def api_playlist_zip(playlist_id):
     data = request.get_json() or {}
@@ -1178,6 +1263,31 @@ def api_trending():
             tracks = _parse_trending_md(md_path)
             categories.append({"key": key, "label": label, "tracks": tracks})
     return jsonify(categories)
+
+
+@app.route("/api/trending/<key>/refresh", methods=["POST"])
+def api_trending_refresh(key):
+    if key not in _TRENDING_LABELS:
+        return jsonify({"error": "unknown key"}), 404
+    import subprocess
+    fetch_script = Path(__file__).parent / "tools" / "trending" / "fetch.py"
+    python_exe = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+    if not python_exe.exists():
+        python_exe = Path(__file__).parent / "venv" / "bin" / "python"
+    try:
+        result = subprocess.run(
+            [str(python_exe), str(fetch_script), "--key", key],
+            capture_output=True, text=True, timeout=120,
+            cwd=str(Path(__file__).parent),
+        )
+        if result.returncode != 0:
+            return jsonify({"error": result.stderr or "Script falhou"}), 500
+        tracks = _parse_trending_md(_TRENDING_DIR / f"{key}.md")
+        return jsonify({"ok": True, "tracks": tracks, "count": len(tracks)})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timeout (>120s)"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ------------------------------------------------------------------

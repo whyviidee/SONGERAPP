@@ -35,6 +35,48 @@ function fmtDuration(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+// Shared ZIP flow — starts a zip job and polls until done, then auto-downloads
+async function zipFlow(btn, tracks, name) {
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<i data-lucide="loader-2" width="14" height="14"></i> A preparar...`;
+  lucide.createIcons();
+  try {
+    const r = await API.post("/api/zip/tracks", { tracks, name });
+    const jobId = r.job_id;
+    toast(`ZIP a iniciar — ${tracks.length} tracks...`, "info");
+    const poll = setInterval(async () => {
+      try {
+        const s = await API.get(`/api/zip/${jobId}/status`);
+        if (s.status === "done") {
+          clearInterval(poll);
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+          lucide.createIcons();
+          toast(`ZIP pronto! ${s.done}/${s.total} tracks`, "success");
+          const a = document.createElement("a");
+          a.href = `/api/zip/${jobId}`;
+          a.click();
+        } else if (s.status === "error") {
+          clearInterval(poll);
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+          lucide.createIcons();
+          toast(`ZIP falhou: ${s.error}`, "error");
+        } else {
+          btn.innerHTML = `<i data-lucide="loader-2" width="14" height="14"></i> ${s.done}/${s.total}`;
+          lucide.createIcons();
+        }
+      } catch (e) {}
+    }, 3000);
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    lucide.createIcons();
+    toast("Falha ao iniciar ZIP", "error");
+  }
+}
+
 // Cache of downloaded track IDs → file paths (refreshed per view)
 let _downloadedMap = null;
 

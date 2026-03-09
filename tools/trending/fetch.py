@@ -190,5 +190,36 @@ def main():
 
     print("\n✓ Tudo atualizado em tools/trending/")
 
+_KEY_MAP = {
+    "portugal-top50":        lambda sp, sc: (fetch_genre_playlist(sp, GENRE_PLAYLISTS["portugal"], limit=30),  "portugal-top50.md",        "Portugal — Top 50",                                                    "Top 50"),
+    "funk-brasil":           lambda sp, sc: (fetch_genre_playlist(sp, GENRE_PLAYLISTS["funk-brasil"]),         "funk-brasil.md",           "Funk Brasil — Trending",                                               "Trending"),
+    "reggaeton":             lambda sp, sc: (fetch_genre_playlist(sp, GENRE_PLAYLISTS["reggaeton"]),           "reggaeton.md",             "Reggaeton — Trending",                                                 "Trending"),
+    "house":                 lambda sp, sc: (fetch_genre_playlist(sp, GENRE_PLAYLISTS["house"]),               "house.md",                 "House Music — Trending",                                               "Trending"),
+    "amapiano":              lambda sp, sc: (fetch_genre_playlist(sp, GENRE_PLAYLISTS["amapiano"]),            "amapiano.md",              "Amapiano — Trending",                                                  "Trending"),
+    "afro-house-electronic": lambda sp, sc: (fetch_soundcloud(sc, SC_QUERIES["afro-house-electronic"]),       "afro-house-electronic.md", "Afro House — Estilo Electrónico (Hugel, Black Coffee, Kinemusic)",     "SoundCloud"),
+    "afro-house-african":    lambda sp, sc: (fetch_soundcloud(sc, SC_QUERIES["afro-house-african"]),          "afro-house-african.md",    "Afro House — Estilo Africano",                                         "SoundCloud"),
+    "underground-remixes":   lambda sp, sc: (fetch_soundcloud(sc, SC_QUERIES["underground-remixes"], limit_per_query=6), "underground-remixes.md", "Underground Remixes — SoundCloud (Kybba, Dave Nunes, Klap, Karyo...)", "SoundCloud"),
+}
+
+
+def refresh_key(key: str):
+    """Refresh a single category by key. Used by server --key mode."""
+    if key not in _KEY_MAP:
+        print(f"✗ Chave desconhecida: {key}", flush=True)
+        return
+    sp = get_spotify()
+    sc_id = get_sc_client_id()
+    tracks, filename, title, section = _KEY_MAP[key](sp, sc_id)
+    write_md(filename, title, [(section, tracks)])
+    print(f"✓ {filename}", flush=True)
+
+
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--key", help="Refresh only one category by key")
+    args = parser.parse_args()
+    if args.key:
+        refresh_key(args.key)
+    else:
+        main()
