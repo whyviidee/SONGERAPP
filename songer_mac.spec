@@ -40,6 +40,8 @@ exe = EXE(
     upx=True,
     console=False,
     target_arch='arm64',
+    codesign_identity='Developer ID Application: Yuri Dagot (4S8T6F279K)',
+    entitlements_file=None,
 )
 
 coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name='SONGER')
