@@ -1,0 +1,5 @@
+{
+  "buildCommand": "",
+  "outputDirectory": "landing",
+  "installCommand": "echo 'skip'"
+}
