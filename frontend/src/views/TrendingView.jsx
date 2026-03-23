@@ -100,7 +100,7 @@ export default function TrendingView({ downloadedIds, refreshDownloadedIds }) {
                 </motion.button>
               </div>
               {cat.tracks?.map((track, i) => (
-                <TrackRow key={i} track={{ name: track.title, artists: [{ name: track.artist }], id: track.url, ...track }} index={i} onDownload={handleDownload} isDownloaded={downloadedIds.has(track.url)} />
+                <TrackRow key={i} track={{ name: track.title, artists: [{ name: track.artist }], id: track.url, ...track }} index={i} onDownload={handleDownload} isDownloaded={downloadedIds?.has(track.url)} />
               ))}
             </GlassCard>
           </motion.div>

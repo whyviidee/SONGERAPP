@@ -38,6 +38,8 @@ export default function App() {
   }, [])
 
   useEffect(() => { refreshDownloadedIds() }, [refreshDownloadedIds])
+  // H2: Refresh downloaded IDs when view changes
+  useEffect(() => { refreshDownloadedIds() }, [view])
 
   return (
     <div style={{ height: '100vh', width: '100vw', overflow: 'hidden', position: 'relative' }}>

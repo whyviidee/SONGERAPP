@@ -26,19 +26,25 @@ export default function SettingsView() {
   const [update, setUpdate] = useState(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [musicService, setMusicService] = useState('spotify')
+  const [spotifyOk, setSpotifyOk] = useState(false)
+  const [tidalOk, setTidalOk] = useState(false)
   const [tidalLogging, setTidalLogging] = useState(false)
   const [tidalUrl, setTidalUrl] = useState('')
 
   useEffect(() => {
     fetch('/api/check-update').then(r => r.json()).then(setUpdate).catch(() => {})
-    fetch('/api/status').then(r => r.json()).then(s => setMusicService(s.music_service || 'spotify')).catch(() => {})
+    fetch('/api/status').then(r => r.json()).then(s => {
+      setMusicService(s.music_service || 'spotify')
+      setSpotifyOk(s.spotify === 'ok')
+      setTidalOk(s.tidal === 'ok')
+    }).catch(() => {})
 
     api.config().then((cfg) => {
       setConfig(cfg)
       const dl = cfg.download || {}
       setDownloadPath(dl.path || '~/Music/SONGER')
       setFormat(dl.format || 'mp3_320')
-      setSource(dl.source || 'hybrid')
+      setSource(dl.source || 'youtube')
       setMaxConcurrent(dl.max_concurrent || 6)
       setOrganize(dl.organize !== false)
     }).catch(() => {}).finally(() => setLoading(false))
@@ -274,14 +280,23 @@ export default function SettingsView() {
         </div>
       </GlassCard>
 
-      {/* Spotify Status */}
+      {/* Connection Status */}
       <GlassCard hover={false}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Spotify</span>
-            <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.5)', marginTop: 4 }}>Connected</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 500, color: '#f0f0f5', fontSize: 14 }}>Spotify</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>{spotifyOk ? 'Connected' : 'Not connected'}</span>
+              <div style={{ width: 8, height: 8, borderRadius: 4, background: spotifyOk ? '#22c55e' : '#f87171' }} />
+            </div>
           </div>
-          <div style={{ width: 10, height: 10, borderRadius: 5, background: '#22c55e' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: 500, color: '#f0f0f5', fontSize: 14 }}>Tidal</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>{tidalOk ? 'Connected' : 'Not connected'}</span>
+              <div style={{ width: 8, height: 8, borderRadius: 4, background: tidalOk ? '#22c55e' : 'rgba(240,240,245,0.2)' }} />
+            </div>
+          </div>
         </div>
       </GlassCard>
 

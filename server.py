@@ -504,6 +504,13 @@ def api_search():
 
 @app.route("/api/artist/<artist_id>")
 def api_artist(artist_id):
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            return jsonify(tidal.get_artist(artist_id))
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     try:
         sp = _get_spotify()
         sp.connect()
@@ -543,6 +550,13 @@ def api_artist(artist_id):
 
 @app.route("/api/album/<album_id>")
 def api_album(album_id):
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            return jsonify(tidal.get_album(album_id))
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     try:
         sp = _get_spotify()
         sp.connect()
@@ -764,7 +778,7 @@ def api_downloaded_ids():
         for j in _download_queue.values():
             if j.get("status") == "done" and j.get("track_id") and j.get("path"):
                 result[j["track_id"]] = j["path"]
-    return jsonify(result)
+    return jsonify({"ids": list(result.keys())})
 
 
 @app.route("/api/downloaded-ids", methods=["DELETE"])
@@ -1069,7 +1083,7 @@ def api_open_file():
 @app.route("/api/check-update")
 def api_check_update():
     """Check GitHub Releases for a newer version."""
-    current = "2.0.1"
+    current = "2.0.2"
     try:
         r = requests.get(
             "https://api.github.com/repos/whyviidee/SONGERAPP/releases/latest",
@@ -1084,7 +1098,10 @@ def api_check_update():
             if asset["name"].endswith(".dmg"):
                 download_url = asset["browser_download_url"]
                 break
-        has_update = latest and latest != current and latest > current
+        def _ver(v):
+            try: return tuple(int(x) for x in v.split('.'))
+            except: return (0,)
+        has_update = latest and latest != current and _ver(latest) > _ver(current)
         return jsonify({
             "current": current,
             "latest": latest,
@@ -1227,11 +1244,14 @@ def api_cover():
 
 @app.route("/api/liked-songs")
 def api_liked_songs():
+    offset = int(request.args.get("offset", 0))
+    limit = int(request.args.get("limit", 500))
     if _get_music_service() == "tidal":
         try:
             tidal = _get_tidal()
             tidal.connect()
-            return jsonify(tidal.get_liked_songs(limit=500))
+            all_tracks = tidal.get_liked_songs(limit=offset + limit)
+            return jsonify(all_tracks[offset:offset + limit])
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     try:
@@ -1304,7 +1324,7 @@ def _run_zip_job_tracks(job_id: str, tracks: list, name: str):
                 pass
             j["done"] = i + 1
             j["progress"] = int((i + 1) / len(tracks) * 85)
-            _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "progress": j["progress"], "done": j["done"], "total": j["total"]})
+            _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": name, "progress": j["progress"], "done": j["done"], "total": j["total"]})
 
         zip_path = tmp_dir.parent / f"{safe_n}.zip"
         with zipfile.ZipFile(str(zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1373,9 +1393,14 @@ def _run_zip_job(job_id: str, playlist_id: str, playlist_name: str):
         j["status"] = "downloading"
         _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "total": 0, "done": 0, "progress": 0})
 
-        sp = _get_spotify()
-        sp.connect()
-        tracks, _ = sp._playlist_tracks(playlist_id)
+        if _get_music_service() == "tidal":
+            tidal = _get_tidal()
+            tidal.connect()
+            tracks, _ = tidal._playlist_tracks(playlist_id)
+        else:
+            sp = _get_spotify()
+            sp.connect()
+            tracks, _ = sp._playlist_tracks(playlist_id)
         j["total"] = len(tracks)
         _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "total": len(tracks), "done": 0, "progress": 0})
 

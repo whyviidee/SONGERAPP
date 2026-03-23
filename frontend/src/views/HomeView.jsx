@@ -124,7 +124,7 @@ export default function HomeView({ onNavigate, onPlay }) {
             ))}
             {library.length > 10 && (
               <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <motion.button whileTap={{ scale: 0.95 }} onClick={() => onNavigate('queue')}
+                <motion.button whileTap={{ scale: 0.95 }} onClick={() => onNavigate('library')}
                   style={{ background: 'none', border: 'none', color: '#8b5cf6', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
                   View all {library.length} tracks →
                 </motion.button>

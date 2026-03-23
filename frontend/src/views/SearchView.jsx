@@ -74,7 +74,7 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
   ]
 
   // Album detail view
-  if (albumInfo && albumTracks) {
+  if (albumInfo) {
     const cover = albumInfo.images?.[0]?.url || albumInfo.cover
     return (
       <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -104,11 +104,18 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
           </div>
         </div>
 
-        <GlassCard hover={false} style={{ padding: 8 }}>
-          {albumTracks.map((track, i) => (
-            <TrackRow key={track.id || i} track={track} index={i} onDownload={handleDownload} isDownloaded={downloadedIds?.has(track.id)} />
-          ))}
-        </GlassCard>
+        {loadingAlbum ? (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+              style={{ width: 32, height: 32, border: '2px solid #8b5cf6', borderTopColor: 'transparent', borderRadius: '50%' }} />
+          </div>
+        ) : (
+          <GlassCard hover={false} style={{ padding: 8 }}>
+            {(albumTracks || []).map((track, i) => (
+              <TrackRow key={track.id || i} track={track} index={i} onDownload={handleDownload} isDownloaded={downloadedIds?.has(track.id)} />
+            ))}
+          </GlassCard>
+        )}
       </div>
     )
   }

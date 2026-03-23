@@ -57,9 +57,11 @@ class TidalClient:
         }
 
     def complete_login(self, future, session) -> bool:
-        """Wait for OAuth to complete and save session."""
+        """Check if OAuth completed (non-blocking)."""
+        if not future.done():
+            return False
         try:
-            future.result(timeout=300)
+            future.result(timeout=0)
             if session.check_login():
                 self._session = session
                 self._save_session()

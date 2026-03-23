@@ -44,7 +44,7 @@ export default function QueueView() {
     <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: '#f0f0f5' }}>Downloads</h1>
-        {jobs.length > 0 && (
+        {active.length > 0 && (
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={async () => { await api.cancelAll(); refresh() }}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '8px 16px', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
