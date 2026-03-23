@@ -1,0 +1,247 @@
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { IoSave, IoCheckmarkCircle, IoFolder, IoMusicalNotes, IoSwapHorizontal, IoRefresh } from 'react-icons/io5'
+import GlassCard from '../components/GlassCard'
+import { api } from '../lib/api'
+
+const FORMATS = [
+  { value: 'mp3_320', label: 'MP3 320kbps (Best)' },
+  { value: 'mp3_256', label: 'MP3 256kbps' },
+  { value: 'mp3_128', label: 'MP3 128kbps' },
+]
+
+const SOURCES = [
+  { value: 'youtube', label: 'YouTube' },
+]
+
+export default function SettingsView() {
+  const [config, setConfig] = useState(null)
+  const [downloadPath, setDownloadPath] = useState('')
+  const [format, setFormat] = useState('mp3_320')
+  const [source, setSource] = useState('hybrid')
+  const [maxConcurrent, setMaxConcurrent] = useState(6)
+  const [organize, setOrganize] = useState(true)
+  const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [update, setUpdate] = useState(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+
+  useEffect(() => {
+    // Check for updates on mount
+    fetch('/api/check-update').then(r => r.json()).then(setUpdate).catch(() => {})
+
+    api.config().then((cfg) => {
+      setConfig(cfg)
+      const dl = cfg.download || {}
+      setDownloadPath(dl.path || '~/Music/SONGER')
+      setFormat(dl.format || 'mp3_320')
+      setSource(dl.source || 'hybrid')
+      setMaxConcurrent(dl.max_concurrent || 6)
+      setOrganize(dl.organize !== false)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          download: {
+            path: downloadPath,
+            format,
+            source,
+            max_concurrent: maxConcurrent,
+            organize,
+          },
+        }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) { console.error(e) }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+          style={{ width: 32, height: 32, border: '2px solid #8b5cf6', borderTopColor: 'transparent', borderRadius: '50%' }} />
+      </div>
+    )
+  }
+
+  const inputStyle = {
+    width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 12, padding: '10px 14px', color: '#f0f0f5', fontSize: 14, fontFamily: 'inherit', outline: 'none',
+  }
+
+  const selectStyle = {
+    ...inputStyle, appearance: 'none', cursor: 'pointer',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='rgba(240,240,245,0.4)'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
+  }
+
+  const labelStyle = { fontSize: 13, fontWeight: 500, color: 'rgba(240,240,245,0.6)', marginBottom: 8, display: 'block' }
+
+  return (
+    <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#f0f0f5' }}>Settings</h1>
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={handleSave}
+          style={{
+            background: saved ? '#06b6d4' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            border: 'none', borderRadius: 14, padding: '10px 20px', color: '#fff', cursor: 'pointer',
+            fontSize: 14, fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+          {saved ? <><IoCheckmarkCircle size={16} /> Saved</> : <><IoSave size={16} /> Save</>}
+        </motion.button>
+      </div>
+
+      {/* Download Path */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <IoFolder size={18} style={{ color: '#8b5cf6' }} />
+          <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Download Folder</span>
+        </div>
+        <input type="text" value={downloadPath} onChange={(e) => setDownloadPath(e.target.value)} style={inputStyle} placeholder="~/Music/SONGER" />
+      </GlassCard>
+
+      {/* Format & Source */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <IoMusicalNotes size={18} style={{ color: '#06b6d4' }} />
+          <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Audio Quality</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div>
+            <label style={labelStyle}>Format</label>
+            <select value={format} onChange={(e) => setFormat(e.target.value)} style={selectStyle}>
+              {FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Source</label>
+            <select value={source} onChange={(e) => setSource(e.target.value)} style={selectStyle}>
+              {SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Concurrent & Organize */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <IoSwapHorizontal size={18} style={{ color: '#a78bfa' }} />
+          <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Download Options</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div>
+            <label style={labelStyle}>Max concurrent downloads</label>
+            <input type="number" min={1} max={12} value={maxConcurrent} onChange={(e) => setMaxConcurrent(parseInt(e.target.value) || 6)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Organize by Artist/Album</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
+              <motion.button whileTap={{ scale: 0.9 }} onClick={() => setOrganize(!organize)}
+                style={{
+                  width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer', padding: 2,
+                  background: organize ? 'linear-gradient(135deg, #8b5cf6, #06b6d4)' : 'rgba(255,255,255,0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: organize ? 'flex-end' : 'flex-start',
+                }}>
+                <motion.div layout style={{ width: 22, height: 22, borderRadius: 11, background: '#fff' }} />
+              </motion.button>
+              <span style={{ fontSize: 14, color: organize ? '#f0f0f5' : 'rgba(240,240,245,0.4)' }}>
+                {organize ? 'On' : 'Off'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Refresh Data */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <IoRefresh size={18} style={{ color: '#22d3ee' }} />
+          <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Refresh Data</span>
+        </div>
+        <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.5)', marginBottom: 16 }}>
+          Refresh to detect new liked songs, playlists, or library changes.
+        </p>
+        <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          onClick={() => { window.location.reload() }}
+          style={{
+            width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 14, padding: '12px 20px', color: '#f0f0f5', cursor: 'pointer',
+            fontSize: 14, fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+          <IoRefresh size={16} /> Refresh App
+        </motion.button>
+      </GlassCard>
+
+      {/* Updates */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Updates</span>
+            <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.5)', marginTop: 4 }}>
+              {update?.has_update
+                ? `v${update.latest} available!`
+                : `v${update?.current || '2.0.0'} — up to date`}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {update?.has_update && (
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={() => fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: update.download_url }) }).catch(() => {})}
+                style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', border: 'none', borderRadius: 12, padding: '8px 16px', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
+                Download v{update.latest}
+              </motion.button>
+            )}
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={async () => {
+                setCheckingUpdate(true)
+                try {
+                  const r = await fetch('/api/check-update').then(r => r.json())
+                  setUpdate(r)
+                } catch {}
+                setCheckingUpdate(false)
+              }}
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '8px 12px', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+              {checkingUpdate ? '...' : 'Check'}
+            </motion.button>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Spotify Status */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Spotify</span>
+            <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.5)', marginTop: 4 }}>Connected</div>
+          </div>
+          <div style={{ width: 10, height: 10, borderRadius: 5, background: '#22c55e' }} />
+        </div>
+      </GlassCard>
+
+      {/* About */}
+      <div style={{ textAlign: 'center', paddingTop: 8, paddingBottom: 20 }}>
+        <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)', marginBottom: 6 }}>SONGER v2.0.0</div>
+        <button
+          onClick={() => fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://dagotinho.pt' }) }).catch(() => {})}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 11, fontWeight: 700, letterSpacing: 3,
+            color: 'rgba(240,240,245,0.15)',
+            transition: 'color 0.2s',
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#8b5cf6'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(240,240,245,0.15)'}
+        >
+          MWLBYD
+        </button>
+      </div>
+    </div>
+  )
+}

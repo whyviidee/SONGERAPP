@@ -1,5 +1,48 @@
 # SONGER — Changelog
 
+## v2.0.0 — Liquid Redesign (2026-03-23)
+
+### New
+- **Complete UI rewrite** — React 19 + Vite 6 + Tailwind v4 + Framer Motion
+- **"Liquid" design system** — animated violet/cyan gradient blobs, glassmorphism, floating nav dock
+- **PyWebView desktop wrapper** — native macOS window, single `python3 songer.py` launch
+- **Unified launcher** (`songer.py`) — Flask backend auto-starts in background thread
+- **Search redesign** — tabs (Tracks/Albums/Artists), album detail view with "Download Album", artist cards
+- **My Music view** — Playlists + Liked Songs tabs with search and pagination
+- **Downloads view** — active queue + download history in one place
+- **Trending view** — 8 genre categories from TRENDING-TRACKS with refresh and "Download All"
+- **Mini Player** — plays downloaded tracks with seekable progress bar (HTTP Range), cover art from file
+- **Download badge** — nav dock shows count of active downloads
+- **Track deletion** — delete from app with smart folder cleanup (removes empty artist/album dirs)
+- **Cover art extraction** — `/api/track-cover` reads embedded artwork from MP3/FLAC
+- **Global downloaded state** — checkmarks persist across all views and app restarts
+- **Spotify auto-config** — credentials pre-populated, one-click OAuth
+- **MWLBYD signature** — clickable in Settings, opens dagotinho.pt
+- **Performance optimized** — faster page transitions, reduced animation overhead, slower background blobs
+- **ZIP playlist download** — download entire playlist as ZIP to music folder
+- **Unzip with confirmation** — one-click extract ZIP to library + auto-delete ZIP + registers all tracks in history and downloaded map
+- **ZIP progress in Downloads** — real-time progress via SSE (tracks done/total + progress bar)
+- **ZIP jobs persistent** — `/api/zip-jobs` endpoint, visible when navigating between views
+- **Duplicate detection** — warns before downloading already-downloaded tracks (skip existing or force all)
+- **Spotify URL support** — paste track/album/playlist URLs directly in search bar
+- **Smart storage display** — auto MB/GB based on size
+
+### Architecture changes
+- Frontend moved from Vanilla JS to React (`frontend/` directory)
+- `app_state.py` now works without PyQt6 (headless mode for Flask-only)
+- Stream endpoint supports HTTP Range requests for audio seeking
+- New endpoints: `/api/stream`, `/api/track-cover`, `/api/delete-track`, `/api/open-url`, `/api/zip-jobs`, `/api/zip/<id>/extract`
+- PyInstaller spec updated for React build + PyWebView + trending symlinks
+- Cover proxy (`/api/cover?url=`) for Spotify CDN images
+
+### Removed
+- PyQt6 desktop UI dependency (optional, backwards compatible)
+- `winotify` dependency (Windows-only)
+- Separate History view (merged into Downloads)
+- Downloaded tab from Library (moved to Home "Your Music")
+
+---
+
 ## v1.4.0 — UX Upgrade: Preview, Artists, Queue Modal, Library Sort (2026-03-03)
 ### Adicionado
 - **Preview 30s** — botão headphones em cada track para ouvir preview do Spotify antes de download

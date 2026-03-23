@@ -26,3 +26,12 @@ tools/trending/amapiano.md
 tools/trending/afro-house-electronic.md
 tools/trending/afro-house-african.md
 tools/trending/underground-remixes.md
+dist/
+build/
+tools/slskd/
+frontend/node_modules/
+frontend/dist/
+*.pyc
+__pycache__/
+.DS_Store
+assets/screenshot-full.png

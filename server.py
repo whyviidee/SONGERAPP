@@ -197,11 +197,25 @@ def disconnect():
     return redirect("/")
 
 
+_FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
+
 @app.route("/app")
-def app_shell():
+@app.route("/app/<path:path>")
+def app_shell(path=''):
     if not TOKEN_PATH.exists():
         return redirect("/?error=no_token")
+    # Serve React build (static assets or fallback to index.html)
+    if path and (_FRONTEND_DIST / path).exists():
+        return send_file(_FRONTEND_DIST / path)
+    index = _FRONTEND_DIST / "index.html"
+    if index.exists():
+        return send_file(index)
+    # Fallback to legacy app.html
     return render_template("app.html")
+
+@app.route("/assets/<path:path>")
+def serve_react_assets(path):
+    return send_file(_FRONTEND_DIST / "assets" / path)
 
 
 @app.route("/api/status")
@@ -280,7 +294,7 @@ def api_stats():
         "downloading": active,
         "pending": pending,
         "playlists": playlists_count,
-        "storage_gb": round(total_mb / 1024, 1),
+        "storage_mb": round(total_mb, 1),
         "top_artists": top_artists,
     })
 
@@ -541,6 +555,7 @@ def api_download():
         "name": data.get("name", "Unknown"),
         "artist": data.get("artist", ""),
         "album": data.get("album", ""),
+        "cover": data.get("cover", ""),
         "uri": data.get("uri", ""),
         "status": "pending",
         "progress": 0,
@@ -804,6 +819,38 @@ def api_library():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/track-cover")
+def api_track_cover():
+    """Extract embedded cover art from audio file."""
+    path = request.args.get("path", "")
+    if not path:
+        return ("", 404)
+    p = Path(path)
+    if not p.exists():
+        return ("", 404)
+    try:
+        from flask import Response
+        ext = p.suffix.lower()
+        img_data = mime = None
+        if ext == ".mp3":
+            from mutagen.id3 import ID3
+            tags = ID3(str(p))
+            for tag in tags.values():
+                if hasattr(tag, "FrameID") and tag.FrameID == "APIC":
+                    img_data, mime = tag.data, tag.mime
+                    break
+        elif ext == ".flac":
+            from mutagen.flac import FLAC
+            audio = FLAC(str(p))
+            if audio.pictures:
+                img_data, mime = audio.pictures[0].data, audio.pictures[0].mime
+        if img_data:
+            return Response(img_data, content_type=mime or "image/jpeg")
+    except Exception:
+        pass
+    return ("", 404)
+
+
 @app.route("/api/history")
 def api_history():
     h = DownloadHistory()
@@ -921,8 +968,104 @@ def api_open_file():
     return jsonify({"ok": True})
 
 
+@app.route("/api/check-update")
+def api_check_update():
+    """Check GitHub Releases for a newer version."""
+    current = "2.0.0"
+    try:
+        r = requests.get(
+            "https://api.github.com/repos/whyviidee/SONGERAPP/releases/latest",
+            timeout=5,
+            headers={"Accept": "application/vnd.github.v3+json"},
+        )
+        r.raise_for_status()
+        data = r.json()
+        latest = data.get("tag_name", "").lstrip("v")
+        download_url = ""
+        for asset in data.get("assets", []):
+            if asset["name"].endswith(".dmg"):
+                download_url = asset["browser_download_url"]
+                break
+        has_update = latest and latest != current and latest > current
+        return jsonify({
+            "current": current,
+            "latest": latest,
+            "has_update": has_update,
+            "download_url": download_url,
+            "release_notes": data.get("body", ""),
+        })
+    except Exception as e:
+        return jsonify({"current": current, "latest": current, "has_update": False, "error": str(e)})
+
+
+@app.route("/api/open-url", methods=["POST"])
+def api_open_url():
+    data = request.get_json() or {}
+    url = data.get("url", "")
+    if not url or not url.startswith("http"):
+        return jsonify({"error": "valid URL required"}), 400
+    webbrowser.open(url)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/delete-track", methods=["POST"])
+def api_delete_track():
+    data = request.get_json() or {}
+    path = data.get("path", "")
+    if not path:
+        return jsonify({"error": "path required"}), 400
+
+    p = Path(path)
+    if not p.exists():
+        return jsonify({"error": "file not found"}), 404
+
+    # Security: only allow deleting from the download folder
+    cfg = _load_config()
+    dl_path = cfg.get("download", {}).get("path", str(Path.home() / "Music" / "SONGER"))
+    try:
+        p.relative_to(dl_path)
+    except ValueError:
+        return jsonify({"error": "not in download folder"}), 403
+
+    try:
+        p.unlink()
+        # Clean up empty album folder
+        album_dir = p.parent
+        if album_dir.exists() and not any(album_dir.iterdir()):
+            album_dir.rmdir()
+            # Clean up empty artist folder
+            artist_dir = album_dir.parent
+            if artist_dir.exists() and not any(artist_dir.iterdir()):
+                artist_dir.rmdir()
+
+        # Remove from downloaded map
+        m = _load_downloaded_map()
+        to_remove = [k for k, v in m.items() if v == str(p)]
+        for k in to_remove:
+            del m[k]
+        if to_remove:
+            _DOWNLOADED_MAP_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(_DOWNLOADED_MAP_PATH, "w", encoding="utf-8") as f:
+                json.dump(m, f, ensure_ascii=False)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True})
+
+
 @app.route("/api/cover")
 def api_cover():
+    # Proxy external image URLs (Spotify CDN etc.)
+    url = request.args.get("url", "")
+    if url and url.startswith("http"):
+        try:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            from flask import Response
+            return Response(r.content, content_type=r.headers.get("Content-Type", "image/jpeg"))
+        except Exception:
+            return ("", 404)
+
     path = request.args.get("path", "")
     if not path:
         return ("", 404)
@@ -1056,7 +1199,7 @@ def _run_zip_job_tracks(job_id: str, tracks: list, name: str):
                 pass
             j["done"] = i + 1
             j["progress"] = int((i + 1) / len(tracks) * 85)
-            _sse_push({"type": "zip_update", "job_id": job_id, "progress": j["progress"], "done": j["done"], "total": j["total"]})
+            _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "progress": j["progress"], "done": j["done"], "total": j["total"]})
 
         zip_path = tmp_dir.parent / f"{safe_n}.zip"
         with zipfile.ZipFile(str(zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1123,12 +1266,13 @@ def _run_zip_job(job_id: str, playlist_id: str, playlist_name: str):
     j = _zip_jobs[job_id]
     try:
         j["status"] = "downloading"
-        _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading"})
+        _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "total": 0, "done": 0, "progress": 0})
 
         sp = _get_spotify()
         sp.connect()
         tracks, _ = sp._playlist_tracks(playlist_id)
         j["total"] = len(tracks)
+        _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "total": len(tracks), "done": 0, "progress": 0})
 
         cfg = _load_config()
         fmt = cfg.get("download", {}).get("format", "mp3_320")
@@ -1157,24 +1301,96 @@ def _run_zip_job(job_id: str, playlist_id: str, playlist_name: str):
                 pass
             j["done"] = i + 1
             j["progress"] = int((i + 1) / len(tracks) * 85)
-            _sse_push({"type": "zip_update", "job_id": job_id, "progress": j["progress"], "done": j["done"], "total": j["total"]})
+            _sse_push({"type": "zip_update", "job_id": job_id, "status": "downloading", "name": playlist_name, "progress": j["progress"], "done": j["done"], "total": j["total"]})
 
-        zip_path = tmp_dir.parent / f"{safe_pl}.zip"
+        # Save ZIP to configured download folder
+        cfg = _load_config()
+        dl_path = Path(cfg.get("download", {}).get("path", "") or str(Path.home() / "Music" / "SONGER"))
+        dl_path.mkdir(parents=True, exist_ok=True)
+        zip_path = dl_path / f"{safe_pl}.zip"
+
         with zipfile.ZipFile(str(zip_path), "w", zipfile.ZIP_DEFLATED) as zf:
             for f in downloaded:
-                zf.write(str(f), arcname=f"{safe_pl}/{f.name}")
+                zf.write(str(f), arcname=f.name)
 
         shutil.rmtree(str(tmp_dir), ignore_errors=True)
 
         j["status"] = "done"
         j["progress"] = 100
         j["zip_path"] = str(zip_path)
-        _sse_push({"type": "zip_update", "job_id": job_id, "status": "done", "progress": 100})
+        _sse_push({"type": "zip_update", "job_id": job_id, "status": "done", "name": playlist_name, "progress": 100, "total": j["total"], "done": j["done"], "path": str(zip_path)})
 
     except Exception as e:
         j["status"] = "error"
         j["error"] = str(e)
         _sse_push({"type": "zip_update", "job_id": job_id, "status": "error", "error": str(e)})
+
+
+@app.route("/api/zip-jobs")
+def api_zip_jobs():
+    return jsonify(list(_zip_jobs.values()))
+
+
+@app.route("/api/zip/<job_id>/extract", methods=["POST"])
+def api_zip_extract(job_id):
+    """Extract ZIP to download folder and delete the ZIP file."""
+    job = _zip_jobs.get(job_id)
+    zip_path = None
+    if job and job.get("zip_path"):
+        zip_path = Path(job["zip_path"])
+    else:
+        # Try from request body
+        data = request.get_json() or {}
+        if data.get("path"):
+            zip_path = Path(data["path"])
+
+    if not zip_path or not zip_path.exists():
+        return jsonify({"error": "ZIP not found"}), 404
+
+    cfg = _load_config()
+    dl_path = Path(cfg.get("download", {}).get("path", "") or str(Path.home() / "Music" / "SONGER"))
+
+    try:
+        import zipfile
+        audio_exts = {'.mp3', '.flac', '.m4a', '.ogg', '.opus', '.wav', '.aac', '.wma'}
+        with zipfile.ZipFile(str(zip_path), "r") as zf:
+            zf.extractall(str(dl_path))
+            extracted = zf.namelist()
+
+        # Register extracted audio files in downloaded_map
+        registered = 0
+        for name in extracted:
+            file_path = dl_path / name
+            if file_path.exists() and file_path.suffix.lower() in audio_exts:
+                # Use filename without extension as a pseudo track ID
+                _save_downloaded_entry(f"zip_{file_path.stem}", str(file_path))
+                registered += 1
+
+        # Add to download history
+        playlist_name = job.get("name", "Playlist") if job else zip_path.stem
+        try:
+            DownloadHistory().add(
+                url="",
+                name=f"{playlist_name} (ZIP)",
+                tracks_count=registered,
+                done_count=registered,
+                fail_count=0,
+                fmt="zip",
+                cover="",
+            )
+        except Exception:
+            pass
+
+        # Delete the ZIP
+        zip_path.unlink()
+
+        # Remove from zip jobs
+        if job_id in _zip_jobs:
+            del _zip_jobs[job_id]
+
+        return jsonify({"ok": True, "extracted": registered, "path": str(dl_path)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/zip/<job_id>/status")
@@ -1198,9 +1414,12 @@ def api_zip_download(job_id):
     return send_file(str(zip_path), as_attachment=True, download_name=zip_path.name)
 
 
+@app.route("/api/stream")
 @app.route("/stream/<path:filepath>")
-def stream_file(filepath):
-    # filepath is URL-encoded absolute path
+def stream_file(filepath=None):
+    # Support both query param and path param
+    if filepath is None:
+        filepath = request.args.get("path", "")
     decoded = urllib.parse.unquote(filepath)
     p = Path(decoded)
     if not p.exists() or not p.is_file():
@@ -1212,7 +1431,36 @@ def stream_file(filepath):
         p.relative_to(dl_path)
     except ValueError:
         return jsonify({"error": "Access denied"}), 403
-    return send_file(str(p))
+
+    # Support range requests for seek
+    file_size = p.stat().st_size
+    range_header = request.headers.get("Range")
+
+    if range_header:
+        # Parse range header: "bytes=start-end"
+        import re as _re_stream
+        m = _re_stream.match(r"bytes=(\d+)-(\d*)", range_header)
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2)) if m.group(2) else file_size - 1
+            end = min(end, file_size - 1)
+            length = end - start + 1
+
+            with open(str(p), "rb") as f:
+                f.seek(start)
+                data = f.read(length)
+
+            from flask import Response
+            resp = Response(data, status=206, mimetype="audio/mpeg")
+            resp.headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+            resp.headers["Accept-Ranges"] = "bytes"
+            resp.headers["Content-Length"] = str(length)
+            return resp
+
+    # Full file response with Accept-Ranges
+    resp = send_file(str(p))
+    resp.headers["Accept-Ranges"] = "bytes"
+    return resp
 
 
 # ------------------------------------------------------------------

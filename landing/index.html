@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONGER — Download Music From Spotify</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --deep: #050508;
+      --violet: #8b5cf6;
+      --cyan: #06b6d4;
+      --text: #f0f0f5;
+      --muted: rgba(240,240,245,0.4);
+    }
+
+    body {
+      background: var(--deep);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ==================== HERO ==================== */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 60px 24px;
+      overflow: hidden;
+    }
+
+    /* Animated mesh gradient */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: -50%;
+      background:
+        radial-gradient(ellipse 600px 600px at 30% 20%, rgba(139,92,246,0.15), transparent),
+        radial-gradient(ellipse 500px 500px at 70% 80%, rgba(6,182,212,0.12), transparent),
+        radial-gradient(ellipse 400px 400px at 50% 50%, rgba(167,139,250,0.08), transparent);
+      animation: meshRotate 30s linear infinite;
+    }
+
+    @keyframes meshRotate {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(180deg) scale(1.1); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    /* Floating particles */
+    .particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--violet);
+      opacity: 0;
+      animation: particleFloat 8s ease-in-out infinite;
+    }
+
+    @keyframes particleFloat {
+      0% { opacity: 0; transform: translateY(100vh) scale(0); }
+      20% { opacity: 0.6; }
+      80% { opacity: 0.3; }
+      100% { opacity: 0; transform: translateY(-20vh) scale(1); }
+    }
+
+    /* Logo */
+    .logo-wrap {
+      position: relative;
+      margin-bottom: 32px;
+      z-index: 2;
+    }
+
+    .logo-svg {
+      width: 120px;
+      height: 120px;
+      filter: drop-shadow(0 0 40px rgba(139,92,246,0.4));
+      animation: logoPulse 4s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { filter: drop-shadow(0 0 40px rgba(139,92,246,0.3)); transform: scale(1); }
+      50% { filter: drop-shadow(0 0 60px rgba(139,92,246,0.5)); transform: scale(1.03); }
+    }
+
+    .hero h1 {
+      font-size: clamp(56px, 10vw, 96px);
+      font-weight: 900;
+      letter-spacing: -3px;
+      line-height: 1;
+      background: linear-gradient(135deg, #fff 0%, #c4b5fd 40%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 20px;
+    }
+
+    .hero .tagline {
+      font-size: clamp(18px, 3vw, 24px);
+      font-weight: 300;
+      color: var(--muted);
+      max-width: 500px;
+      line-height: 1.5;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 48px;
+    }
+
+    .hero .tagline strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* CTA Buttons */
+    .cta-group {
+      display: flex;
+      gap: 16px;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 64px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      border-radius: 16px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      color: white;
+      box-shadow: 0 8px 32px rgba(139,92,246,0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 48px rgba(139,92,246,0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+    }
+
+    /* App preview */
+    .app-preview {
+      position: relative;
+      z-index: 2;
+      max-width: 800px;
+      width: 100%;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 40px 100px rgba(0,0,0,0.5), 0 0 80px rgba(139,92,246,0.1);
+      background: #0a0a0f;
+    }
+
+    .app-preview img {
+      width: 100%;
+      display: block;
+    }
+
+    .app-preview .placeholder {
+      aspect-ratio: 16/10;
+      background: linear-gradient(135deg, #0a0a12, #0f0f1a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* ==================== FEATURES ==================== */
+    .features {
+      padding: 120px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .features h2 {
+      font-size: 48px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+
+    .features .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 18px;
+      margin-bottom: 64px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 24px;
+      padding: 32px;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(139,92,246,0.05), rgba(6,182,212,0.05));
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(139,92,246,0.2);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .feature-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .feature-card p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      position: relative;
+    }
+
+    /* ==================== HOW IT WORKS ==================== */
+    .how-it-works {
+      padding: 120px 24px;
+      text-align: center;
+    }
+
+    .how-it-works h2 {
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 64px;
+      letter-spacing: -1px;
+    }
+
+    .steps {
+      display: flex;
+      gap: 32px;
+      max-width: 900px;
+      margin: 0 auto;
+      justify-content: center;
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+
+    .step-number {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(6,182,212,0.2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--violet);
+      margin: 0 auto 20px;
+    }
+
+    .step h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ==================== FOOTER ==================== */
+    footer {
+      padding: 60px 24px;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    footer .download-cta {
+      margin-bottom: 40px;
+    }
+
+    footer .download-cta h2 {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    footer .download-cta p {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      color: rgba(240,240,245,0.15);
+      font-size: 12px;
+    }
+
+    .footer-bottom a {
+      color: rgba(240,240,245,0.25);
+      text-decoration: none;
+      font-weight: 700;
+      letter-spacing: 3px;
+      transition: color 0.2s;
+    }
+
+    .footer-bottom a:hover { color: var(--violet); }
+
+    /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 768px) {
+      .feature-grid { grid-template-columns: 1fr; }
+      .steps { flex-direction: column; gap: 24px; }
+      .cta-group { flex-direction: column; }
+    }
+
+    /* ==================== SCROLL ANIMATIONS ==================== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="particles" id="particles"></div>
+
+    <div class="logo-wrap">
+      <svg class="logo-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="grad1" x1="0" y1="0" x2="120" y2="120">
+            <stop offset="0%" stop-color="#8b5cf6"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+          </linearGradient>
+          <radialGradient id="grad2" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#8b5cf6"/>
+            <stop offset="100%" stop-color="transparent"/>
+          </radialGradient>
+        </defs>
+        <!-- Outer ring -->
+        <circle cx="60" cy="60" r="56" stroke="url(#grad1)" stroke-width="2.5" opacity="0.6"/>
+        <!-- Inner glow -->
+        <circle cx="60" cy="60" r="40" fill="url(#grad2)" opacity="0.1"/>
+        <!-- Sound wave bars (rectangles instead of strokes) -->
+        <rect x="43" y="48" width="5" height="24" rx="2.5" fill="#8b5cf6" opacity="0.9"/>
+        <rect x="53" y="38" width="5" height="44" rx="2.5" fill="#7c6cf6"/>
+        <rect x="63" y="44" width="5" height="32" rx="2.5" fill="#3da0e0" opacity="0.9"/>
+        <rect x="73" y="50" width="5" height="20" rx="2.5" fill="#06b6d4" opacity="0.8"/>
+        <!-- Download arrow -->
+        <rect x="58" y="88" width="4" height="10" rx="2" fill="#06b6d4"/>
+        <path d="M54 93 L60 100 L66 93" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </div>
+
+    <h1>SONGER</h1>
+    <p class="tagline">
+      Search on <strong>Spotify</strong>. Download from <strong>YouTube</strong>.<br>
+      Your music, your library, your rules.
+    </p>
+
+    <div class="cta-group">
+      <a href="https://github.com/whyviidee/SONGERAPP/releases/latest/download/SONGER-2.0.0-arm64.dmg" class="btn btn-primary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Mac (all models)
+      </a>
+      <a href="#how-it-works" class="btn btn-secondary">How it works</a>
+    </div>
+
+    <div class="app-preview">
+      <img src="assets/screenshot-home.png" alt="SONGER App">
+    </div>
+
+    <!-- More screenshots -->
+    <div style="display: flex; gap: 16px; margin-top: 32px; max-width: 800px; width: 100%; position: relative; z-index: 2;">
+      <div class="app-preview" style="flex: 1; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+        <img src="assets/screenshot-2.png" alt="Trending">
+      </div>
+      <div class="app-preview" style="flex: 1; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+        <img src="assets/screenshot-3.png" alt="Library">
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <h2 class="reveal">Everything you need</h2>
+    <p class="subtitle reveal">No subscriptions. No limits. Just your music.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">&#128269;</div>
+        <h3>Spotify Search</h3>
+        <p>Search any song, artist, or album. Paste Spotify URLs directly. Browse your playlists and liked songs.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: #06b6d4;">&#9889;</div>
+        <h3>MP3 320kbps</h3>
+        <p>Download in the highest quality MP3. Automatic metadata embedding with cover art, tags, and track info.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(167,139,250,0.15); color: #a78bfa;">&#127925;</div>
+        <h3>Built-in Player</h3>
+        <p>Play your downloaded tracks instantly. Seekable progress bar, cover art, and full playback controls.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(34,211,238,0.15); color: #22d3ee;">&#128230;</div>
+        <h3>Playlist ZIP</h3>
+        <p>Download entire playlists as ZIP. One-click extract to your music folder. Smart duplicate detection.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">&#128293;</div>
+        <h3>Trending Tracks</h3>
+        <p>Browse trending music across 8 genres. Portugal Top 50, Reggaeton, Amapiano, Afro House, and more.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: #06b6d4;">&#127760;</div>
+        <h3>Works Offline</h3>
+        <p>Once downloaded, your music is yours forever. No streaming, no internet needed. Organized by artist and album.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-it-works" id="how-it-works">
+    <h2 class="reveal">Get started in 3 steps</h2>
+
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-number">1</div>
+        <h3>Create a Spotify App</h3>
+        <p>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color: var(--violet);">Spotify Developer Dashboard</a>, create a free app, and copy your Client ID & Secret.</p>
+      </div>
+
+      <div class="step reveal">
+        <div class="step-number">2</div>
+        <h3>Open SONGER</h3>
+        <p>Launch the app, paste your Spotify credentials, and authorize. One-time setup, takes 30 seconds.</p>
+      </div>
+
+      <div class="step reveal">
+        <div class="step-number">3</div>
+        <h3>Search & Download</h3>
+        <p>Search for any song, album, or playlist. Click download. Your music appears in ~/Music/SONGER.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="download">
+    <div class="download-cta reveal">
+      <h2>Ready to own your music?</h2>
+      <p>Free. No account needed. Works on all Macs (Apple Silicon + Intel).</p>
+      <a href="https://github.com/whyviidee/SONGERAPP/releases/latest/download/SONGER-2.0.0-arm64.dmg" class="btn btn-primary" style="display: inline-flex;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download SONGER v2.0
+      </a>
+    </div>
+
+    <div class="footer-bottom">
+      <span>SONGER v2.0.0</span>
+      <span>&middot;</span>
+      <a href="https://dagotinho.pt" target="_blank">MWLBYD</a>
+    </div>
+  </footer>
+
+  <script>
+    // Particles
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.animationDelay = Math.random() * 8 + 's';
+      p.style.animationDuration = (6 + Math.random() * 6) + 's';
+      p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+      p.style.background = Math.random() > 0.5 ? '#8b5cf6' : '#06b6d4';
+      container.appendChild(p);
+    }
+
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
