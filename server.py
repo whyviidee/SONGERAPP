@@ -1624,9 +1624,12 @@ def api_trending_refresh(key):
         return jsonify({"error": "unknown key"}), 404
     import subprocess
     fetch_script = Path(__file__).parent / "tools" / "trending" / "fetch.py"
-    python_exe = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+    # Find Python: venv first, then system
+    python_exe = Path(__file__).parent / "venv" / "bin" / "python"
     if not python_exe.exists():
-        python_exe = Path(__file__).parent / "venv" / "bin" / "python"
+        python_exe = Path(__file__).parent / "venv" / "Scripts" / "python.exe"
+    if not python_exe.exists():
+        python_exe = Path(sys.executable)
     try:
         result = subprocess.run(
             [str(python_exe), str(fetch_script), "--key", key],
