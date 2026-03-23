@@ -25,10 +25,13 @@ export default function SettingsView() {
   const [loading, setLoading] = useState(true)
   const [update, setUpdate] = useState(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [musicService, setMusicService] = useState('spotify')
+  const [tidalLogging, setTidalLogging] = useState(false)
+  const [tidalUrl, setTidalUrl] = useState('')
 
   useEffect(() => {
-    // Check for updates on mount
     fetch('/api/check-update').then(r => r.json()).then(setUpdate).catch(() => {})
+    fetch('/api/status').then(r => r.json()).then(s => setMusicService(s.music_service || 'spotify')).catch(() => {})
 
     api.config().then((cfg) => {
       setConfig(cfg)
@@ -96,6 +99,64 @@ export default function SettingsView() {
           {saved ? <><IoCheckmarkCircle size={16} /> Saved</> : <><IoSave size={16} /> Save</>}
         </motion.button>
       </div>
+
+      {/* Music Service */}
+      <GlassCard hover={false}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <span style={{ fontSize: 18 }}>&#127911;</span>
+          <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Music Service</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {['spotify', 'tidal'].map((svc) => (
+            <motion.button key={svc} whileTap={{ scale: 0.95 }}
+              onClick={async () => {
+                if (svc === 'tidal' && musicService !== 'tidal') {
+                  // Start Tidal login
+                  setTidalLogging(true)
+                  try {
+                    const r = await fetch('/api/tidal/login', { method: 'POST' }).then(r => r.json())
+                    if (r.url) {
+                      setTidalUrl(r.url)
+                      fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: r.url }) }).catch(() => {})
+                      // Poll for completion
+                      const poll = setInterval(async () => {
+                        const c = await fetch('/api/tidal/login/complete', { method: 'POST' }).then(r => r.json())
+                        if (c.ok) {
+                          clearInterval(poll)
+                          setMusicService('tidal')
+                          setTidalLogging(false)
+                          setTidalUrl('')
+                        }
+                      }, 3000)
+                      setTimeout(() => { clearInterval(poll); setTidalLogging(false) }, 300000)
+                    }
+                  } catch { setTidalLogging(false) }
+                } else if (svc === 'spotify') {
+                  await fetch('/api/service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service: 'spotify' }) })
+                  setMusicService('spotify')
+                }
+              }}
+              style={{
+                flex: 1, padding: '14px 16px', borderRadius: 14, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit', fontSize: 15, fontWeight: 600,
+                background: musicService === svc
+                  ? 'linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.25))'
+                  : 'rgba(255,255,255,0.04)',
+                color: musicService === svc ? '#f0f0f5' : 'rgba(240,240,245,0.4)',
+                boxShadow: musicService === svc ? '0 0 20px rgba(139,92,246,0.15)' : 'none',
+                border: musicService === svc ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)',
+              }}>
+              {svc === 'spotify' ? 'Spotify' : 'Tidal'}
+            </motion.button>
+          ))}
+        </div>
+        {tidalLogging && (
+          <div style={{ marginTop: 12, fontSize: 13, color: '#06b6d4' }}>
+            Authorize in your browser...
+            {tidalUrl && <div style={{ fontSize: 11, color: 'rgba(240,240,245,0.4)', marginTop: 4, wordBreak: 'break-all' }}>{tidalUrl}</div>}
+          </div>
+        )}
+      </GlassCard>
 
       {/* Download Path */}
       <GlassCard hover={false}>

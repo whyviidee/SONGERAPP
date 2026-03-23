@@ -26,12 +26,16 @@
 - **Duplicate detection** — warns before downloading already-downloaded tracks (skip existing or force all)
 - **Spotify URL support** — paste track/album/playlist URLs directly in search bar
 - **Smart storage display** — auto MB/GB based on size
+- **Tidal integration** — alternative to Spotify, OAuth login, search/playlists/liked songs
+- **Music Service selector** — switch between Spotify and Tidal in Settings
+- **YouTube fix** — Deno JS solver + Chrome cookies for YouTube bot detection bypass
 
 ### Architecture changes
 - Frontend moved from Vanilla JS to React (`frontend/` directory)
 - `app_state.py` now works without PyQt6 (headless mode for Flask-only)
 - Stream endpoint supports HTTP Range requests for audio seeking
-- New endpoints: `/api/stream`, `/api/track-cover`, `/api/delete-track`, `/api/open-url`, `/api/zip-jobs`, `/api/zip/<id>/extract`
+- New endpoints: `/api/stream`, `/api/track-cover`, `/api/delete-track`, `/api/open-url`, `/api/zip-jobs`, `/api/zip/<id>/extract`, `/api/tidal/login`, `/api/tidal/login/complete`, `/api/service`, `/api/check-update`
+- `core/tidal.py` — TidalClient with same interface as SpotifyClient
 - PyInstaller spec updated for React build + PyWebView + trending symlinks
 - Cover proxy (`/api/cover?url=`) for Spotify CDN images
 

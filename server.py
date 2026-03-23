@@ -218,10 +218,36 @@ def serve_react_assets(path):
     return send_file(_FRONTEND_DIST / "assets" / path)
 
 
+# ------------------------------------------------------------------
+# Tidal support
+# ------------------------------------------------------------------
+_tidal_client = None
+_tidal_login_state = {}
+
+def _get_tidal():
+    global _tidal_client
+    if _tidal_client is None:
+        from core.tidal import TidalClient
+        _tidal_client = TidalClient()
+    return _tidal_client
+
+def _get_music_service():
+    """Returns 'tidal' or 'spotify' based on config."""
+    cfg = _load_config()
+    return cfg.get("music_service", "spotify")
+
+
 @app.route("/api/status")
 def api_status():
     cfg = _load_config()
-    has_spotify = TOKEN_PATH.exists() and bool(cfg.get("spotify", {}).get("client_id"))
+    service = _get_music_service()
+
+    spotify_ok = TOKEN_PATH.exists() and bool(cfg.get("spotify", {}).get("client_id"))
+    tidal_ok = False
+    try:
+        tidal_ok = _get_tidal().connect()
+    except Exception:
+        pass
 
     slsk_ok = False
     if cfg.get("soulseek", {}).get("enabled"):
@@ -234,9 +260,61 @@ def api_status():
             slsk_ok = False
 
     return jsonify({
-        "spotify": "ok" if has_spotify else "error",
+        "music_service": service,
+        "spotify": "ok" if spotify_ok else "error",
+        "tidal": "ok" if tidal_ok else "error",
         "soulseek": "ok" if slsk_ok else "error",
     })
+
+
+@app.route("/api/tidal/login", methods=["POST"])
+def api_tidal_login():
+    """Start Tidal OAuth login."""
+    try:
+        tidal = _get_tidal()
+        result = tidal.login_oauth()
+        _tidal_login_state["future"] = result["future"]
+        _tidal_login_state["session"] = result["session"]
+        return jsonify({
+            "ok": True,
+            "url": result["verification_uri"],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tidal/login/complete", methods=["POST"])
+def api_tidal_login_complete():
+    """Check if Tidal OAuth completed."""
+    future = _tidal_login_state.get("future")
+    session = _tidal_login_state.get("session")
+    if not future or not session:
+        return jsonify({"error": "No login in progress"}), 400
+    try:
+        tidal = _get_tidal()
+        ok = tidal.complete_login(future, session)
+        if ok:
+            # Set music service to tidal
+            cfg = _load_config()
+            cfg["music_service"] = "tidal"
+            _save_config(cfg)
+            return jsonify({"ok": True})
+        return jsonify({"ok": False, "error": "Login not completed yet"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/service", methods=["POST"])
+def api_set_service():
+    """Switch between spotify and tidal."""
+    data = request.get_json() or {}
+    service = data.get("service", "spotify")
+    if service not in ("spotify", "tidal"):
+        return jsonify({"error": "Invalid service"}), 400
+    cfg = _load_config()
+    cfg["music_service"] = service
+    _save_config(cfg)
+    return jsonify({"ok": True, "service": service})
 
 
 @app.route("/api/stats")
@@ -346,6 +424,21 @@ def api_search():
     q = request.args.get("q", "").strip()
     if not q:
         return jsonify({"error": "q required"}), 400
+
+    # Use Tidal if configured
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            # Tidal search returns same format as we need
+            if "tidal.com" in q:
+                # TODO: parse tidal URLs
+                pass
+            results = tidal.search(q, limit=10)
+            return jsonify(results)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     try:
         sp = _get_spotify()
         sp.connect()
@@ -747,6 +840,13 @@ def api_events():
 
 @app.route("/api/playlists")
 def api_playlists():
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            return jsonify(tidal.get_my_playlists())
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     try:
         sp = _get_spotify()
         sp.connect()
@@ -768,16 +868,18 @@ def api_playlists():
 
 @app.route("/api/playlists/<playlist_id>/tracks")
 def api_playlist_tracks(playlist_id):
-    print(f"[DEBUG] === PLAYLIST TRACKS REQUEST: {playlist_id} ===")
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            tracks, _ = tidal._playlist_tracks(playlist_id)
+            return jsonify(tracks)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     try:
         sp = _get_spotify()
-        print(f"[DEBUG] Spotify connected: {sp.is_connected()}")
         sp.connect()
-        print(f"[DEBUG] Spotify after connect: {sp.is_connected()}")
         tracks, _name = sp._playlist_tracks(playlist_id)
-        print(f"[DEBUG] Playlist '{_name}': got {len(tracks)} tracks")
-        if tracks:
-            print(f"[DEBUG] First track: {tracks[0]}")
         result = []
         for t in tracks:
             result.append({
@@ -791,12 +893,8 @@ def api_playlist_tracks(playlist_id):
                 "preview_url": t.get("preview_url", ""),
                 "uri": t.get("id", ""),
             })
-        print(f"[DEBUG] Returning {len(result)} tracks as JSON")
         return jsonify(result)
     except Exception as e:
-        import traceback
-        print(f"[DEBUG] PLAYLIST TRACKS ERROR: {e}")
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
@@ -1129,6 +1227,13 @@ def api_cover():
 
 @app.route("/api/liked-songs")
 def api_liked_songs():
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            return jsonify(tidal.get_liked_songs(limit=500))
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     try:
         sp = _get_spotify()
         sp.connect()

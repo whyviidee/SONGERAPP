@@ -107,8 +107,8 @@ class YouTubeClient:
             "logger": _YtDlpLogger(),
             "noplaylist": True,
             "socket_timeout": 30,
-            # Android client contorna o bloqueio HTTP 403 / SABR do YouTube
-            "extractor_args": {"youtube": {"player_client": ["android"]}},
+            # Use Chrome cookies + default client for YouTube auth
+            "cookiesfrombrowser": ("chrome",),
         }
 
         if self._ffmpeg:

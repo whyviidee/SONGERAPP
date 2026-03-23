@@ -16,7 +16,7 @@ Music download manager powered by Spotify, YouTube and Soulseek. Search any song
 | Backend | Python 3.11+ / Flask |
 | Frontend | React 19 + Vite 6 + Tailwind v4 + Framer Motion |
 | Desktop | PyWebView (native macOS/Windows window) |
-| Music API | Spotify (Spotipy, OAuth2) |
+| Music API | Spotify (Spotipy) or Tidal (tidalapi) — user's choice |
 | YouTube DL | yt-dlp |
 | Soulseek | slskd REST API |
 | Metadata | Mutagen (ID3v2, FLAC tags) |
@@ -109,9 +109,9 @@ python3 songer.py
 - Play/pause, time display, close
 
 ### Settings
+- Music Service: switch between Spotify and Tidal
 - Download folder path
-- Audio format: MP3 320/256/128, FLAC
-- Download source: YouTube, Soulseek, Hybrid
+- Audio format: MP3 320/256/128
 - Max concurrent downloads (1-12)
 - Organize by Artist/Album toggle
 - Refresh app button
@@ -204,6 +204,10 @@ All persistent data in `~/.songer/`:
 | GET | `/api/cover?url=...` | Proxy Spotify CDN images |
 | GET | `/api/downloaded-ids` | Map of downloaded track IDs |
 | POST | `/api/settings` | Update config |
+| POST | `/api/tidal/login` | Start Tidal OAuth |
+| POST | `/api/tidal/login/complete` | Check Tidal login status |
+| POST | `/api/service` | Switch music service (spotify/tidal) |
+| GET | `/api/check-update` | Check for app updates |
 
 ## License
 
