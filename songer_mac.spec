@@ -49,9 +49,10 @@ coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name
 app = BUNDLE(
     coll,
     name='SONGER.app',
+    icon='assets/icon.icns',
     bundle_identifier='com.songer.app',
     info_plist={
         'NSHighResolutionCapable': True,
-        'CFBundleShortVersionString': '2.0.0',
+        'CFBundleShortVersionString': '2.0.1',
     },
 )
