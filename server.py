@@ -1069,7 +1069,7 @@ def api_open_file():
 @app.route("/api/check-update")
 def api_check_update():
     """Check GitHub Releases for a newer version."""
-    current = "2.0.0"
+    current = "2.0.1"
     try:
         r = requests.get(
             "https://api.github.com/repos/whyviidee/SONGERAPP/releases/latest",
