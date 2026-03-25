@@ -132,12 +132,30 @@ async function renderPlaylists(params = {}) {
         <div class="playlist-card" data-id="${p.id}" data-name="${p.name}">
           ${p.cover ? `<img class="playlist-cover" src="${p.cover}" alt="">` : `<div class="playlist-cover" style="display:flex;align-items:center;justify-content:center;background:var(--surface-2)"><i data-lucide="music" width="32" height="32"></i></div>`}
           <div class="playlist-name">${p.name}</div>
-          <div class="playlist-count">${p.tracks_total || '—'} tracks</div>
+          <div class="playlist-count" data-pl-id="${p.id}">${p.tracks_total || '...'} tracks</div>
         </div>`).join("")}</div>`;
       lucide.createIcons();
       document.querySelectorAll(".playlist-card").forEach(card => {
         card.addEventListener("click", () => renderPlaylists({ playlist_id: card.dataset.id, playlist_name: card.dataset.name }));
       });
+
+      // Lazy-fetch real counts for playlists showing 0 (batch, update once)
+      const zeroPl = list.filter(p => !p.tracks_total);
+      if (zeroPl.length) {
+        Promise.allSettled(zeroPl.map(p =>
+          API.get(`/api/playlists/${p.id}/count`).then(r => ({ id: p.id, count: r.count }))
+        )).then(results => {
+          results.forEach(r => {
+            if (r.status !== 'fulfilled') return;
+            const { id, count } = r.value;
+            const el = document.querySelector(`.playlist-count[data-pl-id="${id}"]`);
+            if (!el) return;
+            el.textContent = count ? `${count} tracks` : '— tracks';
+            const pl = list.find(p => p.id === id);
+            if (pl && count) pl.tracks_total = count;
+          });
+        });
+      }
     }
 
     renderGrid(playlists);

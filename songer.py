@@ -11,8 +11,6 @@ from pathlib import Path
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 _CONFIG_PATH = Path.home() / ".songer" / "config.json"
-_SPOTIFY_CLIENT_ID = "ce365f4b434c4217a540cd255fd2394c"
-_SPOTIFY_CLIENT_SECRET = "b063d973ecbf42c6a1b8b663ef409a74"
 
 
 def _ensure_config():
@@ -24,9 +22,7 @@ def _ensure_config():
         except Exception:
             pass
     spotify = cfg.setdefault("spotify", {})
-    if not spotify.get("client_id"):
-        spotify["client_id"] = _SPOTIFY_CLIENT_ID
-        spotify["client_secret"] = _SPOTIFY_CLIENT_SECRET
+    if not spotify.get("redirect_uri"):
         spotify["redirect_uri"] = "http://127.0.0.1:8888/callback"
         _CONFIG_PATH.write_text(json.dumps(cfg, indent=2))
 

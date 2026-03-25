@@ -80,6 +80,23 @@ export default function LibraryView({ downloadedIds, refreshDownloadedIds }) {
         setAllPlaylists(p)
         setPlaylists(p.slice(0, PAGE_SIZE))
         setHasMorePl(p.length > PAGE_SIZE)
+        // Lazy-fetch real counts for playlists reporting 0 tracks
+        const zeroPlaylists = p.filter(pl => !pl.tracks_total)
+        if (zeroPlaylists.length) {
+          Promise.allSettled(
+            zeroPlaylists.map(pl =>
+              fetch(`/api/playlists/${pl.id}/count`).then(r => r.json()).then(r => ({ id: pl.id, count: r.count }))
+            )
+          ).then(results => {
+            const counts = {}
+            results.forEach(r => { if (r.status === 'fulfilled' && r.value.count) counts[r.value.id] = r.value.count })
+            if (Object.keys(counts).length) {
+              const update = arr => arr.map(pl => counts[pl.id] ? { ...pl, tracks_total: counts[pl.id] } : pl)
+              setAllPlaylists(update)
+              setPlaylists(update)
+            }
+          })
+        }
       }).catch(() => {}),
       api.likedSongs(0, PAGE_SIZE).then((d) => {
         const t = Array.isArray(d) ? d : (d.tracks || [])

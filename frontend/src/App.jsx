@@ -9,6 +9,7 @@ import QueueView from './views/QueueView'
 import LibraryView from './views/LibraryView'
 import TrendingView from './views/TrendingView'
 import SettingsView from './views/SettingsView'
+import OnboardingView from './views/OnboardingView'
 import { api } from './lib/api'
 
 const VIEWS = {
@@ -31,6 +32,7 @@ export default function App() {
   const [view, setView] = useState('home')
   const [downloadedIds, setDownloadedIds] = useState(new Set())
   const [playingTrack, setPlayingTrack] = useState(null)
+  const [showOnboarding, setShowOnboarding] = useState(null) // null=loading, true=show, false=skip
   const View = VIEWS[view]
 
   const refreshDownloadedIds = useCallback(() => {
@@ -40,6 +42,19 @@ export default function App() {
   useEffect(() => { refreshDownloadedIds() }, [refreshDownloadedIds])
   // H2: Refresh downloaded IDs when view changes
   useEffect(() => { refreshDownloadedIds() }, [view])
+
+  // Check if onboarding is needed on startup
+  useEffect(() => {
+    fetch('/api/status')
+      .then(r => r.json())
+      .then(s => {
+        const configured = s.spotify === 'ok' || s.tidal === 'ok'
+        setShowOnboarding(!configured)
+      })
+      .catch(() => setShowOnboarding(false))
+  }, [])
+
+  if (showOnboarding === null) return null // loading
 
   return (
     <div style={{ height: '100vh', width: '100vw', overflow: 'hidden', position: 'relative' }}>
@@ -67,6 +82,9 @@ export default function App() {
       </main>
       <MiniPlayer track={playingTrack} onClose={() => setPlayingTrack(null)} />
       <NavDock active={view} onNavigate={setView} />
+      {showOnboarding && (
+        <OnboardingView onComplete={() => setShowOnboarding(false)} />
+      )}
     </div>
   )
 }

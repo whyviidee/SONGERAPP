@@ -107,9 +107,25 @@ class YouTubeClient:
             "logger": _YtDlpLogger(),
             "noplaylist": True,
             "socket_timeout": 30,
-            # Use Chrome cookies + default client for YouTube auth
-            "cookiesfrombrowser": ("chrome",),
         }
+
+        # Try browser cookies for YouTube auth (avoids bot detection)
+        # Order: Chrome > Firefox > Safari > Edge > no cookies
+        _browsers = ["chrome", "firefox", "safari", "chromium", "edge"]
+        cookies_ok = False
+        for browser in _browsers:
+            try:
+                test_opts = {"quiet": True, "cookiesfrombrowser": (browser,)}
+                with yt_dlp.YoutubeDL(test_opts) as _ydl:
+                    _ydl.cookiejar  # triggers cookie loading
+                opts["cookiesfrombrowser"] = (browser,)
+                log.info(f"Browser cookies: using {browser}")
+                cookies_ok = True
+                break
+            except Exception:
+                continue
+        if not cookies_ok:
+            log.warning("No browser cookies found — downloading without auth")
 
         if self._ffmpeg:
             opts["ffmpeg_location"] = self._ffmpeg

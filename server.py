@@ -880,6 +880,29 @@ def api_playlists():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/playlists/<playlist_id>/count")
+def api_playlist_count(playlist_id):
+    """Lightweight endpoint — returns just the track count for a playlist."""
+    if _get_music_service() == "tidal":
+        try:
+            tidal = _get_tidal()
+            tidal.connect()
+            tracks, _ = tidal._playlist_tracks(playlist_id)
+            return jsonify({"count": len(tracks)})
+        except Exception as e:
+            log.warning(f"[COUNT] Tidal error for {playlist_id}: {e}")
+            return jsonify({"count": 0}), 200
+    try:
+        sp = _get_spotify()
+        sp.connect()
+        data = sp._sp.playlist(playlist_id, fields="tracks.total")
+        count = data.get("tracks", {}).get("total", 0)
+        return jsonify({"count": count})
+    except Exception as e:
+        log.warning(f"[COUNT] Spotify error for {playlist_id}: {e}")
+        return jsonify({"count": 0}), 200
+
+
 @app.route("/api/playlists/<playlist_id>/tracks")
 def api_playlist_tracks(playlist_id):
     if _get_music_service() == "tidal":
@@ -1005,13 +1028,25 @@ def api_history_clear():
 def api_browse_folder():
     """Abre folder picker nativo e devolve o path escolhido."""
     try:
-        if sys.platform == "win32":
+        if sys.platform == "darwin":
+            script = (
+                'set chosen to POSIX path of (choose folder with prompt "Choose download folder")'
+            )
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=60
+            )
+            chosen = result.stdout.strip().rstrip("/")
+            if result.returncode != 0 or not chosen:
+                return jsonify({"path": ""})
+            return jsonify({"path": chosen})
+        elif sys.platform == "win32":
             ps = (
                 'Add-Type -AssemblyName System.Windows.Forms;'
                 '$f=New-Object System.Windows.Forms.Form;'
                 '$f.TopMost=$true;'
                 '$d=New-Object System.Windows.Forms.FolderBrowserDialog;'
-                '$d.Description="Escolhe pasta de downloads";'
+                '$d.Description="Choose download folder";'
                 '$d.ShowNewFolderButton=$true;'
                 'if($d.ShowDialog($f) -eq "OK"){$d.SelectedPath}else{""}'
             )
@@ -1080,10 +1115,32 @@ def api_open_file():
     return jsonify({"ok": True})
 
 
+def _read_version():
+    """Read version from VERSION file (single source of truth)."""
+    for base in [os.path.dirname(os.path.abspath(__file__)), os.path.dirname(sys.executable)]:
+        vf = os.path.join(base, "VERSION")
+        if os.path.exists(vf):
+            return open(vf).read().strip()
+    # PyInstaller _internal fallback
+    if getattr(sys, "frozen", False):
+        vf = os.path.join(sys._MEIPASS, "VERSION")
+        if os.path.exists(vf):
+            return open(vf).read().strip()
+    return "0.0.0"
+
+
+APP_VERSION = _read_version()
+
+
+@app.route("/api/version")
+def api_version():
+    return jsonify({"version": APP_VERSION})
+
+
 @app.route("/api/check-update")
 def api_check_update():
     """Check GitHub Releases for a newer version."""
-    current = "2.0.2"
+    current = APP_VERSION
     try:
         r = requests.get(
             "https://api.github.com/repos/whyviidee/SONGERAPP/releases/latest",
@@ -1102,12 +1159,15 @@ def api_check_update():
             try: return tuple(int(x) for x in v.split('.'))
             except: return (0,)
         has_update = latest and latest != current and _ver(latest) > _ver(current)
+        app_bundle = _find_current_app_bundle() or ""
+        translocated = "AppTranslocation" in app_bundle
         return jsonify({
             "current": current,
             "latest": latest,
             "has_update": has_update,
             "download_url": download_url,
             "release_notes": data.get("body", ""),
+            "translocated": translocated,
         })
     except Exception as e:
         return jsonify({"current": current, "latest": current, "has_update": False, "error": str(e)})
@@ -1121,6 +1181,164 @@ def api_open_url():
         return jsonify({"error": "valid URL required"}), 400
     webbrowser.open(url)
     return jsonify({"ok": True})
+
+
+# ── Auto-update (macOS .dmg / Windows .exe) ──────────────────────────
+_update_status = {"stage": "idle", "progress": 0, "error": ""}
+
+
+@app.route("/api/auto-update", methods=["POST"])
+def api_auto_update():
+    """Download, install and relaunch — fully automatic."""
+    data = request.get_json() or {}
+    download_url = data.get("download_url", "")
+    if not download_url or not download_url.startswith("http"):
+        return jsonify({"error": "valid download_url required"}), 400
+
+    def _run_update():
+        import tempfile
+        import shutil
+        import platform
+
+        _update_status.update(stage="downloading", progress=0, error="")
+        try:
+            # ── Download ──
+            tmp_dir = tempfile.mkdtemp(prefix="songer_update_")
+            filename = download_url.split("/")[-1]
+            tmp_file = os.path.join(tmp_dir, filename)
+
+            with requests.get(download_url, stream=True, timeout=120) as resp:
+                resp.raise_for_status()
+                total = int(resp.headers.get("content-length", 0))
+                downloaded = 0
+                with open(tmp_file, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1024 * 256):
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            _update_status["progress"] = int(downloaded / total * 100)
+
+            _update_status.update(stage="installing", progress=100)
+
+            if platform.system() == "Darwin" and filename.endswith(".dmg"):
+                _install_mac(tmp_file, tmp_dir)
+            elif platform.system() == "Windows" and filename.endswith(".exe"):
+                _install_windows(tmp_file)
+            else:
+                _update_status.update(stage="error", error=f"Unsupported file: {filename}")
+                return
+
+            _update_status.update(stage="restarting", progress=100)
+            time.sleep(1)
+            _relaunch()
+
+        except Exception as e:
+            _update_status.update(stage="error", error=str(e))
+
+    threading.Thread(target=_run_update, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+def _install_mac(dmg_path, tmp_dir):
+    """Mount .dmg, copy .app over current bundle, unmount."""
+    import shutil
+
+    # Find where current app is running from
+    app_bundle = _find_current_app_bundle()
+    if not app_bundle:
+        raise RuntimeError("Cannot detect current .app bundle path")
+
+    # Detect AppTranslocation — macOS runs apps from a read-only sandbox when
+    # they haven't been moved to /Applications (e.g. run directly from DMG).
+    if "AppTranslocation" in app_bundle:
+        raise RuntimeError(
+            "Move SONGER.app to your Applications folder first, then relaunch."
+        )
+
+    # Mount the dmg
+    mount_point = os.path.join(tmp_dir, "mount")
+    os.makedirs(mount_point, exist_ok=True)
+    subprocess.run(
+        ["hdiutil", "attach", dmg_path, "-mountpoint", mount_point, "-nobrowse", "-quiet"],
+        check=True, timeout=60,
+    )
+
+    try:
+        # Find .app inside mounted volume
+        new_app = None
+        for item in os.listdir(mount_point):
+            if item.endswith(".app"):
+                new_app = os.path.join(mount_point, item)
+                break
+        if not new_app:
+            raise RuntimeError("No .app found in dmg")
+
+        # Replace current app bundle
+        parent = os.path.dirname(app_bundle)
+        app_name = os.path.basename(app_bundle)
+        backup = app_bundle + ".bak"
+        dest = os.path.join(parent, app_name)
+
+        # Move current → backup
+        if os.path.exists(backup):
+            shutil.rmtree(backup)
+        os.rename(app_bundle, backup)
+        try:
+            # Use ditto (not shutil) — preserves codesign + notarization ticket
+            subprocess.run(
+                ["ditto", new_app, dest],
+                check=True, timeout=120,
+            )
+        except Exception:
+            # Rollback if copy fails
+            if os.path.exists(backup):
+                os.rename(backup, app_bundle)
+            raise
+
+        # Clean backup
+        shutil.rmtree(backup, ignore_errors=True)
+
+        # Remove quarantine xattr added by browser download
+        subprocess.run(["xattr", "-cr", dest], timeout=30, check=False)
+    finally:
+        subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], timeout=30)
+
+
+def _install_windows(exe_path):
+    """Run the Windows installer silently."""
+    subprocess.Popen([exe_path, "/SILENT", "/NORESTART"], creationflags=0x00000008)
+
+
+def _find_current_app_bundle():
+    """Detect the .app bundle path on macOS by walking up from the executable."""
+    exe = sys.executable
+    # PyInstaller frozen app: /path/to/SONGER.app/Contents/MacOS/SONGER
+    parts = exe.split(os.sep)
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i].endswith(".app"):
+            return os.sep + os.path.join(*parts[:i + 1])
+    # Fallback: check common location
+    common = "/Applications/SONGER.app"
+    if os.path.exists(common):
+        return common
+    return None
+
+
+def _relaunch():
+    """Relaunch the app after update."""
+    import platform
+    app_bundle = _find_current_app_bundle()
+    if platform.system() == "Darwin" and app_bundle:
+        subprocess.Popen(["open", "-n", app_bundle])
+    elif platform.system() == "Windows":
+        exe = sys.executable
+        subprocess.Popen([exe] + sys.argv)
+    os._exit(0)
+
+
+@app.route("/api/update-status")
+def api_update_status():
+    return jsonify(_update_status)
 
 
 @app.route("/api/delete-track", methods=["POST"])

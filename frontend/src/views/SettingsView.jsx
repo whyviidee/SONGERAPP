@@ -10,28 +10,28 @@ const FORMATS = [
   { value: 'mp3_128', label: 'MP3 128kbps' },
 ]
 
-const SOURCES = [
-  { value: 'youtube', label: 'YouTube' },
-]
-
 export default function SettingsView() {
   const [config, setConfig] = useState(null)
   const [downloadPath, setDownloadPath] = useState('')
   const [format, setFormat] = useState('mp3_320')
-  const [source, setSource] = useState('hybrid')
   const [maxConcurrent, setMaxConcurrent] = useState(6)
   const [organize, setOrganize] = useState(true)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [update, setUpdate] = useState(null)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [updateStage, setUpdateStage] = useState('idle') // idle | downloading | installing | restarting | error
+  const [updateProgress, setUpdateProgress] = useState(0)
+  const [updateError, setUpdateError] = useState('')
   const [musicService, setMusicService] = useState('spotify')
   const [spotifyOk, setSpotifyOk] = useState(false)
   const [tidalOk, setTidalOk] = useState(false)
   const [tidalLogging, setTidalLogging] = useState(false)
   const [tidalUrl, setTidalUrl] = useState('')
+  const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
+    fetch('/api/version').then(r => r.json()).then(d => setAppVersion(d.version)).catch(() => {})
     fetch('/api/check-update').then(r => r.json()).then(setUpdate).catch(() => {})
     fetch('/api/status').then(r => r.json()).then(s => {
       setMusicService(s.music_service || 'spotify')
@@ -44,7 +44,6 @@ export default function SettingsView() {
       const dl = cfg.download || {}
       setDownloadPath(dl.path || '~/Music/SONGER')
       setFormat(dl.format || 'mp3_320')
-      setSource(dl.source || 'youtube')
       setMaxConcurrent(dl.max_concurrent || 6)
       setOrganize(dl.organize !== false)
     }).catch(() => {}).finally(() => setLoading(false))
@@ -59,7 +58,7 @@ export default function SettingsView() {
           download: {
             path: downloadPath,
             format,
-            source,
+            source: 'youtube',
             max_concurrent: maxConcurrent,
             organize,
           },
@@ -170,7 +169,23 @@ export default function SettingsView() {
           <IoFolder size={18} style={{ color: '#8b5cf6' }} />
           <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Download Folder</span>
         </div>
-        <input type="text" value={downloadPath} onChange={(e) => setDownloadPath(e.target.value)} style={inputStyle} placeholder="~/Music/SONGER" />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input type="text" value={downloadPath} onChange={(e) => setDownloadPath(e.target.value)} style={{ ...inputStyle, flex: 1 }} placeholder="~/Music/SONGER" />
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={async () => {
+              try {
+                const r = await fetch('/api/browse-folder').then(r => r.json())
+                if (r.path) setDownloadPath(r.path)
+              } catch {}
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 12, padding: '10px 16px', color: 'rgba(240,240,245,0.6)', cursor: 'pointer',
+              fontSize: 13, fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}>
+            Browse
+          </motion.button>
+        </div>
       </GlassCard>
 
       {/* Format & Source */}
@@ -179,19 +194,11 @@ export default function SettingsView() {
           <IoMusicalNotes size={18} style={{ color: '#06b6d4' }} />
           <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Audio Quality</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div>
-            <label style={labelStyle}>Format</label>
-            <select value={format} onChange={(e) => setFormat(e.target.value)} style={selectStyle}>
-              {FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Source</label>
-            <select value={source} onChange={(e) => setSource(e.target.value)} style={selectStyle}>
-              {SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
+        <div>
+          <label style={labelStyle}>Quality</label>
+          <select value={format} onChange={(e) => setFormat(e.target.value)} style={selectStyle}>
+            {FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </select>
         </div>
       </GlassCard>
 
@@ -247,35 +254,95 @@ export default function SettingsView() {
 
       {/* Updates */}
       <GlassCard hover={false}>
+        {update?.translocated && (
+          <div style={{
+            marginBottom: 16, padding: '12px 16px', borderRadius: 12,
+            background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24', marginBottom: 4 }}>App not in Applications folder</div>
+            <div style={{ fontSize: 12, color: 'rgba(251,191,36,0.7)', lineHeight: 1.6 }}>
+              Auto-update is disabled. Move <strong style={{ color: '#fbbf24' }}>SONGER.app</strong> to your{' '}
+              <strong style={{ color: '#fbbf24' }}>/Applications</strong> folder, then relaunch — updates will work automatically.
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontWeight: 600, color: '#f0f0f5' }}>Updates</span>
             <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.5)', marginTop: 4 }}>
-              {update?.has_update
-                ? `v${update.latest} available!`
-                : `v${update?.current || '2.0.0'} — up to date`}
+              {updateStage === 'downloading' ? `Downloading... ${updateProgress}%`
+                : updateStage === 'installing' ? 'Installing update...'
+                : updateStage === 'restarting' ? 'Restarting...'
+                : updateStage === 'error' ? `Error: ${updateError}`
+                : update?.has_update ? `v${update.latest} available!`
+                : `v${update?.current || appVersion || '...'} — up to date`}
             </div>
+            {updateStage === 'downloading' && (
+              <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 2, background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)', width: `${updateProgress}%`, transition: 'width 0.3s' }} />
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {update?.has_update && (
+            {update?.has_update && updateStage === 'idle' && !update?.translocated && (
               <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                onClick={() => fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: update.download_url }) }).catch(() => {})}
+                onClick={async () => {
+                  setUpdateStage('downloading')
+                  setUpdateProgress(0)
+                  setUpdateError('')
+                  try {
+                    await fetch('/api/auto-update', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ download_url: update.download_url }),
+                    })
+                    // Poll for status
+                    const poll = setInterval(async () => {
+                      try {
+                        const s = await fetch('/api/update-status').then(r => r.json())
+                        setUpdateStage(s.stage)
+                        setUpdateProgress(s.progress)
+                        if (s.error) setUpdateError(s.error)
+                        if (s.stage === 'restarting' || s.stage === 'error' || s.stage === 'idle') {
+                          clearInterval(poll)
+                        }
+                      } catch {
+                        // Server restarted — update succeeded
+                        clearInterval(poll)
+                        setUpdateStage('restarting')
+                      }
+                    }, 500)
+                  } catch {
+                    setUpdateStage('error')
+                    setUpdateError('Failed to start update')
+                  }
+                }}
                 style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', border: 'none', borderRadius: 12, padding: '8px 16px', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
-                Download v{update.latest}
+                Update to v{update.latest}
               </motion.button>
             )}
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={async () => {
-                setCheckingUpdate(true)
-                try {
-                  const r = await fetch('/api/check-update').then(r => r.json())
-                  setUpdate(r)
-                } catch {}
-                setCheckingUpdate(false)
-              }}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '8px 12px', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
-              {checkingUpdate ? '...' : 'Check'}
-            </motion.button>
+            {['downloading', 'installing', 'restarting'].includes(updateStage) && (
+              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px' }}>
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  style={{ width: 16, height: 16, border: '2px solid rgba(139,92,246,0.3)', borderTopColor: '#8b5cf6', borderRadius: '50%' }} />
+              </div>
+            )}
+            {(updateStage === 'idle' || updateStage === 'error') && (
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={async () => {
+                  setCheckingUpdate(true)
+                  setUpdateStage('idle')
+                  setUpdateError('')
+                  try {
+                    const r = await fetch('/api/check-update').then(r => r.json())
+                    setUpdate(r)
+                  } catch {}
+                  setCheckingUpdate(false)
+                }}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '8px 12px', color: 'rgba(240,240,245,0.5)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>
+                {checkingUpdate ? '...' : 'Check'}
+              </motion.button>
+            )}
           </div>
         </div>
       </GlassCard>
@@ -302,7 +369,7 @@ export default function SettingsView() {
 
       {/* About */}
       <div style={{ textAlign: 'center', paddingTop: 8, paddingBottom: 20 }}>
-        <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)', marginBottom: 6 }}>SONGER v2.0.0</div>
+        <div style={{ fontSize: 13, color: 'rgba(240,240,245,0.3)', marginBottom: 6 }}>SONGER v{appVersion || '...'}</div>
         <button
           onClick={() => fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://dagotinho.pt' }) }).catch(() => {})}
           style={{

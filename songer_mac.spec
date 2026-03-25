@@ -2,7 +2,11 @@
 import os
 block_cipher = None
 
+# Read version from VERSION file
+_version = open('VERSION').read().strip()
+
 _datas = [
+    ('VERSION', '.'),
     ('frontend/dist', 'frontend/dist'),
     ('web', 'web'),
     ('tools/trending', 'tools/trending'),
@@ -40,7 +44,7 @@ exe = EXE(
     upx=True,
     console=False,
     target_arch='arm64',
-    codesign_identity='Developer ID Application: Yuri Dagot (4S8T6F279K)',
+    codesign_identity=None,
     entitlements_file=None,
 )
 
@@ -53,6 +57,6 @@ app = BUNDLE(
     bundle_identifier='com.songer.app',
     info_plist={
         'NSHighResolutionCapable': True,
-        'CFBundleShortVersionString': '2.0.1',
+        'CFBundleShortVersionString': _version,
     },
 )

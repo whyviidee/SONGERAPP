@@ -3,572 +3,911 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SONGER — Download Music From Spotify</title>
+  <title>SONGER — Your Music, Downloaded</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --deep: #050508;
-      --violet: #8b5cf6;
-      --cyan: #06b6d4;
-      --text: #f0f0f5;
-      --muted: rgba(240,240,245,0.4);
+      --bg: #06060a;
+      --surface: #0c0c14;
+      --v: #8b5cf6;
+      --c: #06b6d4;
+      --text: #e8e8f0;
+      --dim: rgba(232,232,240,0.35);
+      --sans: 'Space Grotesk', system-ui, sans-serif;
+      --serif: 'Instrument Serif', Georgia, serif;
     }
 
+    html { scroll-behavior: smooth; }
+
     body {
-      background: var(--deep);
+      background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: var(--sans);
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ==================== HERO ==================== */
-    .hero {
-      position: relative;
-      min-height: 100vh;
+    /* ===== SVG LIQUID FILTER ===== */
+    .svg-filters { position: absolute; width: 0; height: 0; }
+
+    /* ===== NAV ===== */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 20px 40px;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 60px 24px;
-      overflow: hidden;
+      justify-content: space-between;
+      backdrop-filter: blur(20px) saturate(1.4);
+      background: rgba(6,6,10,0.6);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: all 0.4s;
     }
 
-    /* Animated mesh gradient */
-    .hero::before {
-      content: '';
-      position: absolute;
-      inset: -50%;
-      background:
-        radial-gradient(ellipse 600px 600px at 30% 20%, rgba(139,92,246,0.15), transparent),
-        radial-gradient(ellipse 500px 500px at 70% 80%, rgba(6,182,212,0.12), transparent),
-        radial-gradient(ellipse 400px 400px at 50% 50%, rgba(167,139,250,0.08), transparent);
-      animation: meshRotate 30s linear infinite;
+    nav.scrolled {
+      padding: 14px 40px;
+      background: rgba(6,6,10,0.85);
     }
 
-    @keyframes meshRotate {
-      0% { transform: rotate(0deg) scale(1); }
-      50% { transform: rotate(180deg) scale(1.1); }
-      100% { transform: rotate(360deg) scale(1); }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: 0.5px;
+      color: var(--text);
+      text-decoration: none;
     }
 
-    /* Floating particles */
-    .particles {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-      pointer-events: none;
+    .nav-logo svg { width: 28px; height: 28px; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
     }
 
-    .particle {
-      position: absolute;
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--violet);
-      opacity: 0;
-      animation: particleFloat 8s ease-in-out infinite;
+    .nav-links a {
+      color: var(--dim);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      transition: color 0.3s;
     }
 
-    @keyframes particleFloat {
-      0% { opacity: 0; transform: translateY(100vh) scale(0); }
-      20% { opacity: 0.6; }
-      80% { opacity: 0.3; }
-      100% { opacity: 0; transform: translateY(-20vh) scale(1); }
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-dl {
+      background: rgba(139,92,246,0.12);
+      border: 1px solid rgba(139,92,246,0.25);
+      color: #c4b5fd !important;
+      padding: 8px 20px;
+      border-radius: 10px;
+      transition: all 0.3s !important;
     }
 
-    /* Logo */
-    .logo-wrap {
+    .nav-dl:hover {
+      background: rgba(139,92,246,0.2) !important;
+      color: #fff !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(139,92,246,0.2);
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 60px;
+      padding: 140px 60px 100px;
+      max-width: 1340px;
+      margin: 0 auto;
       position: relative;
+    }
+
+    /* Liquid blob background */
+    .liquid-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+      filter: url(#liquid);
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      will-change: transform;
+    }
+
+    .blob-1 {
+      width: 500px; height: 500px;
+      background: rgba(139,92,246,0.08);
+      top: -10%; left: -5%;
+      animation: blobDrift1 25s ease-in-out infinite;
+    }
+
+    .blob-2 {
+      width: 400px; height: 400px;
+      background: rgba(6,182,212,0.06);
+      bottom: 10%; right: -5%;
+      animation: blobDrift2 30s ease-in-out infinite;
+    }
+
+    .blob-3 {
+      width: 300px; height: 300px;
+      background: rgba(139,92,246,0.05);
+      top: 50%; left: 40%;
+      animation: blobDrift3 20s ease-in-out infinite;
+    }
+
+    @keyframes blobDrift1 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(80px, 40px) scale(1.1); }
+      50% { transform: translate(30px, 80px) scale(0.95); }
+      75% { transform: translate(-40px, 20px) scale(1.05); }
+    }
+
+    @keyframes blobDrift2 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(-60px, -40px) scale(1.08); }
+      66% { transform: translate(40px, -80px) scale(0.92); }
+    }
+
+    @keyframes blobDrift3 {
+      0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+      50% { transform: translate(60px, -60px) scale(1.15) rotate(30deg); }
+    }
+
+    .hero-text { position: relative; z-index: 2; }
+
+    .hero-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.15);
+      font-size: 12px;
+      font-weight: 500;
+      color: #c4b5fd;
+      letter-spacing: 0.5px;
       margin-bottom: 32px;
-      z-index: 2;
     }
 
-    .logo-svg {
-      width: 120px;
-      height: 120px;
-      filter: drop-shadow(0 0 40px rgba(139,92,246,0.4));
-      animation: logoPulse 4s ease-in-out infinite;
+    .hero-label .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      animation: dotPulse 2s ease-in-out infinite;
     }
 
-    @keyframes logoPulse {
-      0%, 100% { filter: drop-shadow(0 0 40px rgba(139,92,246,0.3)); transform: scale(1); }
-      50% { filter: drop-shadow(0 0 60px rgba(139,92,246,0.5)); transform: scale(1.03); }
+    @keyframes dotPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
     }
 
     .hero h1 {
-      font-size: clamp(56px, 10vw, 96px);
-      font-weight: 900;
-      letter-spacing: -3px;
-      line-height: 1;
-      background: linear-gradient(135deg, #fff 0%, #c4b5fd 40%, #06b6d4 100%);
+      font-family: var(--serif);
+      font-size: clamp(52px, 6vw, 80px);
+      font-weight: 400;
+      line-height: 1.05;
+      letter-spacing: -1px;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      background: linear-gradient(135deg, var(--v), var(--c));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      position: relative;
-      z-index: 2;
-      margin-bottom: 20px;
     }
 
-    .hero .tagline {
-      font-size: clamp(18px, 3vw, 24px);
-      font-weight: 300;
-      color: var(--muted);
-      max-width: 500px;
-      line-height: 1.5;
-      position: relative;
-      z-index: 2;
-      margin-bottom: 48px;
+    .hero-desc {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--dim);
+      max-width: 420px;
+      margin-bottom: 40px;
     }
 
-    .hero .tagline strong {
-      color: var(--text);
-      font-weight: 500;
-    }
-
-    /* CTA Buttons */
-    .cta-group {
+    .hero-actions {
       display: flex;
+      align-items: center;
       gap: 16px;
-      position: relative;
-      z-index: 2;
-      margin-bottom: 64px;
     }
 
-    .btn {
+    .btn-main {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 16px 32px;
-      border-radius: 16px;
-      font-family: inherit;
-      font-size: 16px;
+      padding: 15px 28px;
+      border-radius: 14px;
+      font-family: var(--sans);
+      font-size: 14px;
       font-weight: 600;
       text-decoration: none;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      color: #fff;
+      background: linear-gradient(135deg, var(--v), #7c3aed);
       border: none;
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 24px rgba(139,92,246,0.25);
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, var(--violet), var(--cyan));
-      color: white;
-      box-shadow: 0 8px 32px rgba(139,92,246,0.3);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 12px 48px rgba(139,92,246,0.4);
-    }
-
-    .btn-secondary {
-      background: rgba(255,255,255,0.06);
-      color: var(--text);
-      border: 1px solid rgba(255,255,255,0.1);
-      backdrop-filter: blur(10px);
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.1);
+    .btn-main:hover {
       transform: translateY(-2px);
+      box-shadow: 0 8px 36px rgba(139,92,246,0.35);
     }
 
-    /* App preview */
-    .app-preview {
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 15px 24px;
+      border-radius: 14px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      color: var(--dim);
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.03);
+    }
+
+    /* Hero visual - app mockup with liquid frame */
+    .hero-visual {
       position: relative;
       z-index: 2;
-      max-width: 800px;
-      width: 100%;
-      border-radius: 20px;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 40px 100px rgba(0,0,0,0.5), 0 0 80px rgba(139,92,246,0.1);
-      background: #0a0a0f;
     }
 
-    .app-preview img {
+    .app-frame {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow:
+        0 40px 80px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(255,255,255,0.05),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .app-frame:hover { transform: translateY(-6px) rotateX(1deg); }
+
+    .app-frame::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px; right: -1px; bottom: -1px;
+      border-radius: 21px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.15), transparent 40%, transparent 60%, rgba(6,182,212,0.1));
+      z-index: -1;
+    }
+
+    /* Window dots */
+    .window-bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .window-dot {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+    }
+
+    .window-dot:nth-child(1) { background: #ff5f57; }
+    .window-dot:nth-child(2) { background: #febc2e; }
+    .window-dot:nth-child(3) { background: #28c840; }
+
+    .app-frame img {
       width: 100%;
       display: block;
     }
 
-    .app-preview .placeholder {
-      aspect-ratio: 16/10;
-      background: linear-gradient(135deg, #0a0a12, #0f0f1a);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 14px;
+    /* Floating glow ring behind app */
+    .glow-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 110%; height: 110%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(139,92,246,0.06) 0%, transparent 70%);
+      z-index: -1;
+      animation: ringPulse 6s ease-in-out infinite;
     }
 
-    /* ==================== FEATURES ==================== */
-    .features {
-      padding: 120px 24px;
-      max-width: 1100px;
+    @keyframes ringPulse {
+      0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+    }
+
+    /* ===== MARQUEE ===== */
+    .marquee-section {
+      padding: 40px 0;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .marquee-track {
+      display: flex;
+      gap: 48px;
+      animation: marqueeScroll 40s linear infinite;
+      width: max-content;
+    }
+
+    .marquee-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--dim);
+      letter-spacing: 0.3px;
+    }
+
+    .marquee-item .mi-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(139,92,246,0.4);
+      flex-shrink: 0;
+    }
+
+    @keyframes marqueeScroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ===== SHOWCASE - Split screenshots ===== */
+    .showcase {
+      padding: 140px 60px;
+      max-width: 1340px;
       margin: 0 auto;
     }
 
-    .features h2 {
-      font-size: 48px;
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 16px;
-      letter-spacing: -1px;
-    }
-
-    .features .subtitle {
-      text-align: center;
-      color: var(--muted);
-      font-size: 18px;
-      margin-bottom: 64px;
-    }
-
-    .feature-grid {
+    .showcase-header {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: end;
+      margin-bottom: 80px;
+    }
+
+    .showcase-header h2 {
+      font-family: var(--serif);
+      font-size: clamp(40px, 4.5vw, 64px);
+      font-weight: 400;
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+    }
+
+    .showcase-header p {
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--dim);
+      align-self: end;
+    }
+
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
       gap: 24px;
     }
 
-    .feature-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
+    .showcase-card {
       border-radius: 24px;
-      padding: 32px;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .showcase-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(139,92,246,0.15);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    }
+
+    .showcase-card img {
+      width: 100%;
+      display: block;
+    }
+
+    .showcase-card-info {
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .showcase-card-info h3 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .showcase-card-info span {
+      font-size: 12px;
+      color: var(--dim);
+      padding: 4px 12px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* ===== FEATURES - Horizontal cards ===== */
+    .features-section {
+      padding: 0 60px 140px;
+      max-width: 1340px;
+      margin: 0 auto;
+    }
+
+    .feat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .feat {
+      padding: 36px 32px;
+      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.05);
       transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       position: relative;
       overflow: hidden;
     }
 
-    .feature-card::before {
+    .feat::after {
       content: '';
       position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(139,92,246,0.05), rgba(6,182,212,0.05));
+      top: 0; left: 0;
+      width: 100%; height: 2px;
+      background: linear-gradient(90deg, var(--v), var(--c));
       opacity: 0;
       transition: opacity 0.4s;
     }
 
-    .feature-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(139,92,246,0.2);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    .feat:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255,255,255,0.08);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.3);
     }
 
-    .feature-card:hover::before { opacity: 1; }
+    .feat:hover::after { opacity: 1; }
 
-    .feature-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
+    .feat-num {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: rgba(139,92,246,0.5);
+      margin-bottom: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .feat h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .feat p {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--dim);
+    }
+
+    /* ===== BOTTOM CTA ===== */
+    .bottom-cta {
+      padding: 120px 60px;
+      text-align: center;
+      position: relative;
+    }
+
+    .bottom-cta::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.06), transparent 70%);
+      pointer-events: none;
+    }
+
+    .bottom-cta h2 {
+      font-family: var(--serif);
+      font-size: clamp(36px, 4vw, 56px);
+      font-weight: 400;
       margin-bottom: 20px;
       position: relative;
     }
 
-    .feature-card h3 {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      position: relative;
-    }
-
-    .feature-card p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-      position: relative;
-    }
-
-    /* ==================== HOW IT WORKS ==================== */
-    .how-it-works {
-      padding: 120px 24px;
-      text-align: center;
-    }
-
-    .how-it-works h2 {
-      font-size: 48px;
-      font-weight: 800;
-      margin-bottom: 64px;
-      letter-spacing: -1px;
-    }
-
-    .steps {
-      display: flex;
-      gap: 32px;
-      max-width: 900px;
-      margin: 0 auto;
-      justify-content: center;
-    }
-
-    .step {
-      flex: 1;
-      text-align: center;
-      position: relative;
-    }
-
-    .step-number {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(6,182,212,0.2));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--violet);
-      margin: 0 auto 20px;
-    }
-
-    .step h3 {
+    .bottom-cta p {
       font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .step p {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    /* ==================== FOOTER ==================== */
-    footer {
-      padding: 60px 24px;
-      text-align: center;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-
-    footer .download-cta {
+      color: var(--dim);
       margin-bottom: 40px;
+      position: relative;
     }
 
-    footer .download-cta h2 {
-      font-size: 36px;
-      font-weight: 800;
-      margin-bottom: 16px;
-    }
+    .bottom-cta .btn-main { position: relative; }
 
-    footer .download-cta p {
-      color: var(--muted);
-      margin-bottom: 24px;
-    }
-
-    .footer-bottom {
+    /* ===== FOOTER ===== */
+    footer {
+      padding: 32px 60px;
       display: flex;
-      justify-content: center;
       align-items: center;
-      gap: 24px;
-      color: rgba(240,240,245,0.15);
+      justify-content: space-between;
+      border-top: 1px solid rgba(255,255,255,0.04);
       font-size: 12px;
+      color: rgba(232,232,240,0.15);
     }
 
-    .footer-bottom a {
-      color: rgba(240,240,245,0.25);
+    footer a {
+      color: rgba(232,232,240,0.25);
       text-decoration: none;
-      font-weight: 700;
-      letter-spacing: 3px;
-      transition: color 0.2s;
+      font-weight: 600;
+      letter-spacing: 2px;
+      transition: color 0.3s;
     }
 
-    .footer-bottom a:hover { color: var(--violet); }
+    footer a:hover { color: var(--v); }
 
-    /* ==================== RESPONSIVE ==================== */
-    @media (max-width: 768px) {
-      .feature-grid { grid-template-columns: 1fr; }
-      .steps { flex-direction: column; gap: 24px; }
-      .cta-group { flex-direction: column; }
-    }
-
-    /* ==================== SCROLL ANIMATIONS ==================== */
-    .reveal {
+    /* ===== SCROLL REVEAL ===== */
+    [data-reveal] {
       opacity: 0;
-      transform: translateY(30px);
-      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(24px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .reveal.visible {
+    [data-reveal].in {
       opacity: 1;
       transform: translateY(0);
+    }
+
+    [data-reveal-delay="1"] { transition-delay: 0.1s; }
+    [data-reveal-delay="2"] { transition-delay: 0.2s; }
+    [data-reveal-delay="3"] { transition-delay: 0.3s; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 960px) {
+      .hero {
+        grid-template-columns: 1fr;
+        padding: 120px 28px 60px;
+        gap: 48px;
+        text-align: center;
+      }
+      .hero-desc { margin: 0 auto 40px; }
+      .hero-actions { justify-content: center; }
+      .showcase { padding: 80px 28px; }
+      .showcase-header {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        margin-bottom: 48px;
+      }
+      .showcase-grid { grid-template-columns: 1fr; }
+      .features-section { padding: 0 28px 80px; }
+      .feat-row { grid-template-columns: 1fr; }
+      .bottom-cta { padding: 80px 28px; }
+      footer { padding: 24px 28px; }
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .hero-actions { flex-direction: column; width: 100%; }
+      .hero-actions a { width: 100%; justify-content: center; }
+    }
+
+    /* ===== CURSOR GLOW (desktop only) ===== */
+    .cursor-glow {
+      position: fixed;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.04), transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.3s;
+    }
+
+    @media (hover: none) {
+      .cursor-glow { display: none; }
     }
   </style>
 </head>
 <body>
 
+  <!-- SVG Filters for liquid effect -->
+  <svg class="svg-filters">
+    <defs>
+      <filter id="liquid">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="2" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Cursor glow -->
+  <div class="cursor-glow" id="cursorGlow"></div>
+
+  <!-- Liquid background -->
+  <div class="liquid-bg">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <a href="#" class="nav-logo">
+      <svg viewBox="0 0 120 120" fill="none"><circle cx="60" cy="60" r="56" stroke="url(#ng)" stroke-width="3" opacity="0.7"/><path d="M45 48v24" stroke="url(#ng)" stroke-width="4.5" stroke-linecap="round" opacity="0.9"/><path d="M55 38v44" stroke="url(#ng)" stroke-width="4.5" stroke-linecap="round"/><path d="M65 44v32" stroke="url(#ng)" stroke-width="4.5" stroke-linecap="round" opacity="0.9"/><path d="M75 50v20" stroke="url(#ng)" stroke-width="4.5" stroke-linecap="round" opacity="0.7"/><defs><linearGradient id="ng" x1="0" y1="0" x2="120" y2="120"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient></defs></svg>
+      SONGER
+    </a>
+    <ul class="nav-links">
+      <li><a href="#showcase">App</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="https://github.com/whyviidee/SONGERAPP" target="_blank">GitHub</a></li>
+      <li><a id="nav-dl" href="/SONGER-arm64.dmg" class="nav-dl" download>Download</a></li>
+    </ul>
+  </nav>
+
   <!-- HERO -->
   <section class="hero">
-    <div class="particles" id="particles"></div>
-
-    <div class="logo-wrap">
-      <svg class="logo-svg" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="grad1" x1="0" y1="0" x2="120" y2="120">
-            <stop offset="0%" stop-color="#8b5cf6"/>
-            <stop offset="100%" stop-color="#06b6d4"/>
-          </linearGradient>
-          <radialGradient id="grad2" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#8b5cf6"/>
-            <stop offset="100%" stop-color="transparent"/>
-          </radialGradient>
-        </defs>
-        <!-- Outer ring -->
-        <circle cx="60" cy="60" r="56" stroke="url(#grad1)" stroke-width="2.5" opacity="0.6"/>
-        <!-- Inner glow -->
-        <circle cx="60" cy="60" r="40" fill="url(#grad2)" opacity="0.1"/>
-        <!-- Sound wave bars (rectangles instead of strokes) -->
-        <rect x="43" y="48" width="5" height="24" rx="2.5" fill="#8b5cf6" opacity="0.9"/>
-        <rect x="53" y="38" width="5" height="44" rx="2.5" fill="#7c6cf6"/>
-        <rect x="63" y="44" width="5" height="32" rx="2.5" fill="#3da0e0" opacity="0.9"/>
-        <rect x="73" y="50" width="5" height="20" rx="2.5" fill="#06b6d4" opacity="0.8"/>
-        <!-- Download arrow -->
-        <rect x="58" y="88" width="4" height="10" rx="2" fill="#06b6d4"/>
-        <path d="M54 93 L60 100 L66 93" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      </svg>
-    </div>
-
-    <h1>SONGER</h1>
-    <p class="tagline">
-      Search on <strong>Spotify</strong> or <strong>Tidal</strong>. Download from <strong>YouTube</strong>.<br>
-      Your music, your library, your rules.
-    </p>
-
-    <div class="cta-group">
-      <a href="https://github.com/whyviidee/SONGERAPP/releases/latest/download/SONGER-2.0.2-arm64.dmg" class="btn btn-primary">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download for Mac (all models)
-      </a>
-      <a href="#how-it-works" class="btn btn-secondary">How it works</a>
-    </div>
-
-    <div class="app-preview">
-      <img src="assets/screenshot-home.png" alt="SONGER App">
-    </div>
-
-    <!-- More screenshots -->
-    <div style="display: flex; gap: 16px; margin-top: 32px; max-width: 800px; width: 100%; position: relative; z-index: 2;">
-      <div class="app-preview" style="flex: 1; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
-        <img src="assets/screenshot-2.png" alt="Trending">
+    <div class="hero-text">
+      <div class="hero-label" data-reveal>
+        <span class="dot"></span>
+        v2.0 out now
       </div>
-      <div class="app-preview" style="flex: 1; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
-        <img src="assets/screenshot-3.png" alt="Library">
+      <h1 data-reveal data-reveal-delay="1">
+        Search it.<br><em>Download it.</em><br>Keep it.
+      </h1>
+      <p class="hero-desc" data-reveal data-reveal-delay="2">
+        Find any track on Spotify or Tidal. SONGER grabs it from YouTube in 320kbps MP3 with full metadata and cover art. No subscriptions, no streaming. Your files, your drive.
+      </p>
+      <div class="hero-actions" data-reveal data-reveal-delay="3">
+        <div id="dl-wrap" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
+          <a id="dl-primary" href="/SONGER-arm64.dmg" class="btn-main" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span id="dl-label">Download for Mac</span>
+          </a>
+          <a id="dl-other" href="#" style="font-size:12px;color:rgba(232,232,240,0.35);text-decoration:none;padding-left:4px;display:none;" download></a>
+        </div>
+        <a href="#showcase" class="btn-ghost">See it in action</a>
+      </div>
+    </div>
+
+    <div class="hero-visual" data-reveal data-reveal-delay="2">
+      <div class="glow-ring"></div>
+      <div class="app-frame">
+        <div class="window-bar">
+          <div class="window-dot"></div>
+          <div class="window-dot"></div>
+          <div class="window-dot"></div>
+        </div>
+        <img src="assets/screenshot-home.png" alt="SONGER Home" loading="eager">
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE -->
+  <div class="marquee-section">
+    <div class="marquee-track">
+      <span class="marquee-item"><span class="mi-dot"></span>Spotify Search</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Tidal Integration</span>
+      <span class="marquee-item"><span class="mi-dot"></span>MP3 320kbps</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Cover Art Embedded</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Full Metadata</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Playlist ZIP</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Built-in Player</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Trending Charts</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Auto Updates</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Offline Forever</span>
+      <span class="marquee-item"><span class="mi-dot"></span>macOS Native</span>
+      <span class="marquee-item"><span class="mi-dot"></span>No Account Needed</span>
+      <!-- duplicate for seamless loop -->
+      <span class="marquee-item"><span class="mi-dot"></span>Spotify Search</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Tidal Integration</span>
+      <span class="marquee-item"><span class="mi-dot"></span>MP3 320kbps</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Cover Art Embedded</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Full Metadata</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Playlist ZIP</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Built-in Player</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Trending Charts</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Auto Updates</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Offline Forever</span>
+      <span class="marquee-item"><span class="mi-dot"></span>macOS Native</span>
+      <span class="marquee-item"><span class="mi-dot"></span>No Account Needed</span>
+    </div>
+  </div>
+
+  <!-- SHOWCASE -->
+  <section class="showcase" id="showcase">
+    <div class="showcase-header">
+      <h2 data-reveal>Built for people<br>who collect music</h2>
+      <p data-reveal data-reveal-delay="1">
+        Not another streaming wrapper. SONGER downloads real files to your hard drive.
+        Organized by artist and album, tagged with proper metadata, ready for any DJ software or player.
+      </p>
+    </div>
+
+    <div class="showcase-grid">
+      <div class="showcase-card" data-reveal>
+        <img src="assets/screenshot-2.png" alt="Trending charts" loading="lazy">
+        <div class="showcase-card-info">
+          <h3>Trending Charts</h3>
+          <span>8 genres</span>
+        </div>
+      </div>
+      <div class="showcase-card" data-reveal data-reveal-delay="1">
+        <img src="assets/screenshot-3.png" alt="Local library" loading="lazy">
+        <div class="showcase-card-info">
+          <h3>Your Library</h3>
+          <span>Offline</span>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- FEATURES -->
-  <section class="features">
-    <h2 class="reveal">Everything you need</h2>
-    <p class="subtitle reveal">No subscriptions. No limits. Just your music.</p>
-
-    <div class="feature-grid">
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">&#128269;</div>
-        <h3>Spotify or Tidal</h3>
-        <p>Choose your service. Search any song, artist, or album. Paste URLs directly. Browse your playlists and liked songs.</p>
+  <section class="features-section" id="features">
+    <div class="feat-row">
+      <div class="feat" data-reveal>
+        <div class="feat-num">01</div>
+        <h3>Search anywhere</h3>
+        <p>Spotify or Tidal, your choice. Search by name, paste a URL, browse your playlists and liked songs. Switch services anytime.</p>
       </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: #06b6d4;">&#9889;</div>
-        <h3>MP3 320kbps</h3>
-        <p>Download in the highest quality MP3. Automatic metadata embedding with cover art, tags, and track info.</p>
+      <div class="feat" data-reveal data-reveal-delay="1">
+        <div class="feat-num">02</div>
+        <h3>Real files, real quality</h3>
+        <p>320kbps MP3 with ID3 tags, album art, and proper file naming. Not a cached stream. A file you own.</p>
       </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(167,139,250,0.15); color: #a78bfa;">&#127925;</div>
-        <h3>Built-in Player</h3>
-        <p>Play your downloaded tracks instantly. Seekable progress bar, cover art, and full playback controls.</p>
+      <div class="feat" data-reveal data-reveal-delay="2">
+        <div class="feat-num">03</div>
+        <h3>Entire playlists at once</h3>
+        <p>Download full playlists as a ZIP. Auto-extract, duplicate detection, and download history built in.</p>
       </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(34,211,238,0.15); color: #22d3ee;">&#128230;</div>
-        <h3>Playlist ZIP</h3>
-        <p>Download entire playlists as ZIP. One-click extract to your music folder. Smart duplicate detection.</p>
+    </div>
+    <div class="feat-row" style="margin-top: 20px;">
+      <div class="feat" data-reveal>
+        <div class="feat-num">04</div>
+        <h3>Play before you save</h3>
+        <p>Built-in player with seekable progress, cover art display, and playback controls. Preview your downloads instantly.</p>
       </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">&#128293;</div>
-        <h3>Trending Tracks</h3>
-        <p>Browse trending music across 8 genres. Portugal Top 50, Reggaeton, Amapiano, Afro House, and more.</p>
+      <div class="feat" data-reveal data-reveal-delay="1">
+        <div class="feat-num">05</div>
+        <h3>Always up to date</h3>
+        <p>One-click auto updates. SONGER checks GitHub for new versions and installs them without leaving the app.</p>
       </div>
-
-      <div class="feature-card reveal">
-        <div class="feature-icon" style="background: rgba(6,182,212,0.15); color: #06b6d4;">&#127760;</div>
-        <h3>Works Offline</h3>
-        <p>Once downloaded, your music is yours forever. No streaming, no internet needed. Organized by artist and album.</p>
+      <div class="feat" data-reveal data-reveal-delay="2">
+        <div class="feat-num">06</div>
+        <h3>Yours forever</h3>
+        <p>No subscription, no login wall, no internet needed after download. Close the app, your music stays. Always.</p>
       </div>
     </div>
   </section>
 
-  <!-- HOW IT WORKS -->
-  <section class="how-it-works" id="how-it-works">
-    <h2 class="reveal">Get started in 3 steps</h2>
-
-    <div class="steps">
-      <div class="step reveal">
-        <div class="step-number">1</div>
-        <h3>Connect your account</h3>
-        <p>Use <a href="https://developer.spotify.com/dashboard" target="_blank" style="color: var(--violet);">Spotify</a> (create a free app) or <strong>Tidal</strong> (just log in). Your choice.</p>
-      </div>
-
-      <div class="step reveal">
-        <div class="step-number">2</div>
-        <h3>Open SONGER</h3>
-        <p>Open the .dmg, drag SONGER to Applications. First time: right-click > Open, then click Open again. Or run in Terminal:<br><code style="background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px; font-size: 12px;">xattr -cr /Applications/SONGER.app</code></p>
-      </div>
-
-      <div class="step reveal">
-        <div class="step-number">3</div>
-        <h3>Search & Download</h3>
-        <p>Search for any song, album, or playlist. Click download. Your music appears in ~/Music/SONGER.</p>
-      </div>
-    </div>
+  <!-- BOTTOM CTA -->
+  <section class="bottom-cta">
+    <h2 data-reveal>Stop renting your music</h2>
+    <p data-reveal data-reveal-delay="1">Free and open source. macOS native. Works on all Macs.</p>
+    <a id="dl-cta" href="/SONGER-arm64.dmg" class="btn-main" data-reveal data-reveal-delay="2" download>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span id="dl-cta-label">Download SONGER</span>
+    </a>
   </section>
 
   <!-- FOOTER -->
-  <footer id="download">
-    <div class="download-cta reveal">
-      <h2>Ready to own your music?</h2>
-      <p>Free. No account needed. Works on all Macs (Apple Silicon + Intel).</p>
-      <a href="https://github.com/whyviidee/SONGERAPP/releases/latest/download/SONGER-2.0.2-arm64.dmg" class="btn btn-primary" style="display: inline-flex;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download SONGER v2.0
-      </a>
-    </div>
-
-    <div class="footer-bottom">
-      <span>SONGER v2.0.0</span>
-      <span>&middot;</span>
-      <a href="https://dagotinho.pt" target="_blank">MWLBYD</a>
-    </div>
+  <footer>
+    <span>SONGER v2.2.5</span>
+    <a href="https://dagotinho.pt" target="_blank">MWLBYD</a>
   </footer>
 
   <script>
-    // Particles
-    const container = document.getElementById('particles');
-    for (let i = 0; i < 30; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      p.style.left = Math.random() * 100 + '%';
-      p.style.animationDelay = Math.random() * 8 + 's';
-      p.style.animationDuration = (6 + Math.random() * 6) + 's';
-      p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
-      p.style.background = Math.random() > 0.5 ? '#8b5cf6' : '#06b6d4';
-      container.appendChild(p);
-    }
-
     // Scroll reveal
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') });
-    }, { threshold: 0.1 });
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('[data-reveal]').forEach(el => obs.observe(el));
 
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    // Nav scroll state
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 40);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+
+    // Chip detection — Apple Silicon vs Intel
+    (function() {
+      // WebGL renderer trick: Apple Silicon GPUs report "Apple" in renderer string
+      let isAppleSilicon = false;
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const ext = gl.getExtension('WEBGL_debug_renderer_info');
+          if (ext) {
+            const renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '';
+            isAppleSilicon = /Apple M\d|Apple GPU/i.test(renderer);
+          }
+        }
+      } catch(e) {}
+
+      const arm = '/SONGER-arm64.dmg';
+      const x86 = '/SONGER-x86_64.dmg';
+
+      const primary = document.getElementById('dl-primary');
+      const label   = document.getElementById('dl-label');
+      const other   = document.getElementById('dl-other');
+      const navDl   = document.getElementById('nav-dl');
+      const cta     = document.getElementById('dl-cta');
+      const ctaLbl  = document.getElementById('dl-cta-label');
+
+      if (isAppleSilicon) {
+        // Apple Silicon detected
+        primary.href = arm; navDl.href = arm; cta.href = arm;
+        label.textContent = 'Download for Mac — Apple Silicon';
+        ctaLbl.textContent = 'Download SONGER (Apple Silicon)';
+        other.href = x86;
+        other.textContent = 'Intel Mac? Download here';
+        other.style.display = 'block';
+      } else {
+        // Intel or unknown — show Intel as primary, Silicon as secondary
+        primary.href = x86; navDl.href = x86; cta.href = x86;
+        label.textContent = 'Download for Mac — Intel';
+        ctaLbl.textContent = 'Download SONGER (Intel)';
+        other.href = arm;
+        other.textContent = 'Apple Silicon Mac? Download here';
+        other.style.display = 'block';
+      }
+    })();
+
+    // Cursor glow (desktop)
+    if (window.matchMedia('(hover: hover)').matches) {
+      const glow = document.getElementById('cursorGlow');
+      let mx = 0, my = 0, gx = 0, gy = 0;
+      document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+      (function animate() {
+        gx += (mx - gx) * 0.08;
+        gy += (my - gy) * 0.08;
+        glow.style.left = gx + 'px';
+        glow.style.top = gy + 'px';
+        requestAnimationFrame(animate);
+      })();
+    }
   </script>
 </body>
 </html>
