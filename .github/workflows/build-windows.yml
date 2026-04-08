@@ -3,6 +3,12 @@ name: Build Windows
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach to (e.g. v2.2.27)'
+        required: true
+        default: 'v2.2.27'
 
 jobs:
   build-windows:
@@ -45,6 +51,7 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag || github.event.release.tag_name }}
           files: SONGER-${{ steps.version.outputs.version }}-windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
