@@ -24,7 +24,7 @@ a = Analysis(
         'spotipy', 'spotipy.oauth2',
         'mutagen', 'mutagen.id3', 'mutagen.flac', 'mutagen.mp3',
         'yt_dlp', 'imageio_ffmpeg', 'requests',
-        'core.config', 'core.spotify', 'core.youtube',
+        'core.config', 'core.spotify', 'core.youtube', 'core.ytdlp',
         'core.soulseek', 'core.downloader', 'core.metadata',
         'core.matcher', 'core.library', 'core.history',
         'core.ffmpeg_manager', 'core.logger', 'core.app_state',

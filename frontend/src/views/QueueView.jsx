@@ -6,7 +6,7 @@ import { useDownloadQueue } from '../hooks/useDownloadQueue'
 import { useSSE } from '../hooks/useSSE'
 import { api } from '../lib/api'
 
-export default function QueueView() {
+export default function QueueView({ refreshDownloadedIds }) {
   const { jobs, refresh } = useDownloadQueue()
   const [history, setHistory] = useState([])
   const [zipJobs, setZipJobs] = useState({})
@@ -136,8 +136,9 @@ export default function QueueView() {
                         delete copy[id]
                         return copy
                       })
-                      // Refresh history and queue to show new entries
+                      // Refresh everything — history, queue, and downloaded badges
                       refresh()
+                      refreshDownloadedIds?.()
                       api.history().then((d) => setHistory(Array.isArray(d) ? d : (d.history || []))).catch(() => {})
                     } else {
                       alert('Error: ' + (data.error || 'Unknown'))

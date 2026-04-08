@@ -9,6 +9,10 @@ import QueueView from './views/QueueView'
 import LibraryView from './views/LibraryView'
 import TrendingView from './views/TrendingView'
 import SettingsView from './views/SettingsView'
+import AlbumView from './views/AlbumView'
+import ArtistView from './views/ArtistView'
+import FaqView from './views/FaqView'
+import UrlDownloadView from './views/UrlDownloadView'
 import OnboardingView from './views/OnboardingView'
 import { api } from './lib/api'
 
@@ -19,6 +23,10 @@ const VIEWS = {
   library: LibraryView,
   trending: TrendingView,
   settings: SettingsView,
+  album: AlbumView,
+  artist: ArtistView,
+  faq: FaqView,
+  url_download: UrlDownloadView,
 }
 
 const pageTransition = {
@@ -29,19 +37,20 @@ const pageTransition = {
 }
 
 export default function App() {
-  const [view, setView] = useState('home')
+  const [nav, setNav] = useState({ id: 'home', params: {} })
   const [downloadedIds, setDownloadedIds] = useState(new Set())
   const [playingTrack, setPlayingTrack] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(null) // null=loading, true=show, false=skip
-  const View = VIEWS[view]
+  const View = VIEWS[nav.id] || VIEWS.home
+
+  const navigate = useCallback((id, params = {}) => setNav({ id, params }), [])
 
   const refreshDownloadedIds = useCallback(() => {
     api.downloadedIds().then((d) => setDownloadedIds(new Set(d.ids || []))).catch(() => {})
   }, [])
 
   useEffect(() => { refreshDownloadedIds() }, [refreshDownloadedIds])
-  // H2: Refresh downloaded IDs when view changes
-  useEffect(() => { refreshDownloadedIds() }, [view])
+  useEffect(() => { refreshDownloadedIds() }, [nav.id])
 
   // Check if onboarding is needed on startup
   useEffect(() => {
@@ -70,9 +79,10 @@ export default function App() {
         paddingRight: 32,
       }}>
         <AnimatePresence mode="wait">
-          <motion.div key={view} {...pageTransition}>
+          <motion.div key={nav.id + JSON.stringify(nav.params)} {...pageTransition}>
             <View
-              onNavigate={setView}
+              onNavigate={navigate}
+              params={nav.params}
               downloadedIds={downloadedIds}
               refreshDownloadedIds={refreshDownloadedIds}
               onPlay={setPlayingTrack}
@@ -81,7 +91,7 @@ export default function App() {
         </AnimatePresence>
       </main>
       <MiniPlayer track={playingTrack} onClose={() => setPlayingTrack(null)} />
-      <NavDock active={view} onNavigate={setView} />
+      <NavDock active={nav.id} onNavigate={navigate} />
       {showOnboarding && (
         <OnboardingView onComplete={() => setShowOnboarding(false)} />
       )}

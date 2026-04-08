@@ -685,7 +685,7 @@
     <div class="hero-text">
       <div class="hero-label" data-reveal>
         <span class="dot"></span>
-        v2.2.10 out now
+        <span id="hero-version">v2.2.27 out now</span>
       </div>
       <h1 data-reveal data-reveal-delay="1">
         Search it.<br><em>Download it.</em><br>Keep it.
@@ -731,8 +731,10 @@
       <span class="marquee-item"><span class="mi-dot"></span>Trending Charts</span>
       <span class="marquee-item"><span class="mi-dot"></span>Auto Updates</span>
       <span class="marquee-item"><span class="mi-dot"></span>Offline Forever</span>
-      <span class="marquee-item"><span class="mi-dot"></span>macOS Native</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Mac &amp; Windows</span>
       <span class="marquee-item"><span class="mi-dot"></span>No Account Needed</span>
+      <span class="marquee-item"><span class="mi-dot"></span>SoundCloud</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Bandcamp</span>
       <!-- duplicate for seamless loop -->
       <span class="marquee-item"><span class="mi-dot"></span>Spotify Search</span>
       <span class="marquee-item"><span class="mi-dot"></span>Tidal Integration</span>
@@ -744,8 +746,10 @@
       <span class="marquee-item"><span class="mi-dot"></span>Trending Charts</span>
       <span class="marquee-item"><span class="mi-dot"></span>Auto Updates</span>
       <span class="marquee-item"><span class="mi-dot"></span>Offline Forever</span>
-      <span class="marquee-item"><span class="mi-dot"></span>macOS Native</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Mac &amp; Windows</span>
       <span class="marquee-item"><span class="mi-dot"></span>No Account Needed</span>
+      <span class="marquee-item"><span class="mi-dot"></span>SoundCloud</span>
+      <span class="marquee-item"><span class="mi-dot"></span>Bandcamp</span>
     </div>
   </div>
 
@@ -813,12 +817,29 @@
         <p>No subscription, no login wall, no internet needed after download. Close the app, your music stays. Always.</p>
       </div>
     </div>
+    <div class="feat-row" style="margin-top: 20px;">
+      <div class="feat" data-reveal>
+        <div class="feat-num">07</div>
+        <h3>Mac &amp; Windows</h3>
+        <p>Native app for macOS (Apple Silicon + Intel) and Windows. One download, works on your machine.</p>
+      </div>
+      <div class="feat" data-reveal data-reveal-delay="1">
+        <div class="feat-num">08</div>
+        <h3>Any URL, any source</h3>
+        <p>Paste a SoundCloud, Bandcamp, Mixcloud or YouTube link and download it directly — no Spotify needed.</p>
+      </div>
+      <div class="feat" data-reveal data-reveal-delay="2">
+        <div class="feat-num">09</div>
+        <h3>Open source</h3>
+        <p>Free forever. Source code on GitHub. No telemetry, no ads, no account required to use it.</p>
+      </div>
+    </div>
   </section>
 
   <!-- BOTTOM CTA -->
   <section class="bottom-cta">
     <h2 data-reveal>Stop renting your music</h2>
-    <p data-reveal data-reveal-delay="1">Free and open source. macOS native. Works on all Macs.</p>
+    <p data-reveal data-reveal-delay="1">Free and open source. Mac &amp; Windows. Works everywhere.</p>
     <a id="dl-cta" href="/SONGER-arm64.dmg" class="btn-main" data-reveal data-reveal-delay="2" download>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span id="dl-cta-label">Download SONGER</span>
@@ -827,11 +848,22 @@
 
   <!-- FOOTER -->
   <footer>
-    <span>SONGER v2.2.26#resetparaorelease.shfazerbumpcorrectamente</span>
+    <span id="footer-version">SONGER v2.2.27</span>
     <a href="https://dagotinho.pt" target="_blank">MWLBYD</a>
   </footer>
 
   <script>
+    // Fetch latest version from GitHub and update hero + footer
+    fetch('https://api.github.com/repos/whyviidee/SONGERAPP/releases/latest', { headers: { Accept: 'application/vnd.github.v3+json' } })
+      .then(r => r.json()).then(d => {
+        const v = (d.tag_name || '').replace(/^v/, '')
+        if (!v) return
+        const hero = document.getElementById('hero-version')
+        const footer = document.getElementById('footer-version')
+        if (hero) hero.textContent = 'v' + v + ' out now'
+        if (footer) footer.textContent = 'SONGER v' + v
+      }).catch(() => {})
+
     // Scroll reveal
     const obs = new IntersectionObserver((entries) => {
       entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });

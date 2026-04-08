@@ -32,7 +32,7 @@ _ensure_config()
 
 def start_flask():
     from server import app
-    app.run(host='127.0.0.1', port=8888, debug=False, use_reloader=False)
+    app.run(host='127.0.0.1', port=8888, debug=False, use_reloader=False, threaded=True)
 
 
 if __name__ == '__main__':

@@ -491,6 +491,9 @@ def api_search():
         sp.connect()
         if "spotify.com" in q or q.startswith("spotify:"):
             # URL ou URI Spotify — devolver as tracks do álbum/playlist/track
+            kind, link_id = sp.parse_link(q)
+            if not kind:
+                return jsonify({"tracks": [], "albums": [], "artists": [], "error": "Link Spotify inválido"}), 400
             tracks_raw, _name = sp.get_tracks(q)
             tracks = []
             for t in tracks_raw:
@@ -506,6 +509,10 @@ def api_search():
                     "uri": "",
                     "external_url": "",
                 })
+            playlist_meta = {}
+            if kind == "playlist":
+                playlist_meta = {"playlist_id": link_id, "playlist_name": _name or "Playlist"}
+            return jsonify({"tracks": tracks, "albums": [], "artists": [], **playlist_meta})
         else:
             results = sp.search(q, limit=10)
             tracks = []

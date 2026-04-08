@@ -98,6 +98,7 @@ export default function SettingsView() {
       setOrganize(dl.organize !== false)
       const sp = cfg.spotify || {}
       if (sp.client_id) setSpotifyClientId(sp.client_id)
+      if (sp.client_secret) setSpotifyClientSecret(sp.client_secret)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 

@@ -98,8 +98,17 @@ class YouTubeClient:
         out_template = str(output_path / stem)
         log.debug(f"Template de saída: {out_template}")
 
+        # Captura o path final via postprocessor_hooks (fiável após conversão ffmpeg)
+        final_path_holder: dict = {}
+
+        def pp_hook(d: dict):
+            if d.get("status") == "finished":
+                fp = (d.get("info_dict") or {}).get("filepath") or d.get("filepath", "")
+                if fp:
+                    final_path_holder["path"] = fp
+
         opts = {
-            "format": preset["format"],
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
             "postprocessors": preset["postprocessors"],
             "outtmpl": out_template + ".%(ext)s",
             "quiet": False,
@@ -107,29 +116,11 @@ class YouTubeClient:
             "logger": _YtDlpLogger(),
             "noplaylist": True,
             "socket_timeout": 30,
+            "postprocessor_hooks": [pp_hook],
         }
-
-        # Try browser cookies for YouTube auth (avoids bot detection)
-        # Order: Chrome > Firefox > Safari > Edge > no cookies
-        _browsers = ["chrome", "firefox", "safari", "chromium", "edge"]
-        cookies_ok = False
-        for browser in _browsers:
-            try:
-                test_opts = {"quiet": True, "cookiesfrombrowser": (browser,)}
-                with yt_dlp.YoutubeDL(test_opts) as _ydl:
-                    _ydl.cookiejar  # triggers cookie loading
-                opts["cookiesfrombrowser"] = (browser,)
-                log.info(f"Browser cookies: using {browser}")
-                cookies_ok = True
-                break
-            except Exception:
-                continue
-        if not cookies_ok:
-            log.warning("No browser cookies found — downloading without auth")
 
         if self._ffmpeg:
             opts["ffmpeg_location"] = self._ffmpeg
-            log.debug(f"ffmpeg_location={self._ffmpeg}")
 
         if progress_cb:
             opts["progress_hooks"] = [lambda d: _hook(d, progress_cb)]
@@ -137,15 +128,7 @@ class YouTubeClient:
         try:
             log.info(f"Chamando yt-dlp: ytsearch1:{query}")
             with yt_dlp.YoutubeDL(opts) as ydl:
-                info = ydl.extract_info(f"ytsearch1:{query}", download=True)
-                if info and "entries" in info and info["entries"]:
-                    entry = info["entries"][0]
-                    log.info(f"Download concluído: '{entry.get('title', '?')}' de {entry.get('channel', '?')}")
-                elif info:
-                    log.info(f"Download concluído: '{info.get('title', '?')}'")
-                else:
-                    log.warning(f"yt-dlp retornou None para '{query}'")
-
+                ydl.extract_info(f"ytsearch1:{query}", download=True)
         except yt_dlp.utils.DownloadError as e:
             log.error(f"yt-dlp DownloadError para '{query}': {e}")
             raise RuntimeError(f"YouTube: {e}") from e
@@ -153,23 +136,29 @@ class YouTubeClient:
             log.error(f"Erro inesperado no download de '{query}': {e}", exc_info=True)
             raise RuntimeError(f"Erro inesperado: {e}") from e
 
-        # Encontrar o ficheiro descarregado
+        # 1. Path exacto via postprocessor_hooks
+        if final_path_holder.get("path"):
+            p = Path(final_path_holder["path"])
+            if p.exists():
+                log.info(f"Ficheiro via pp_hook: {p}")
+                return p
+
+        # 2. Fallback: path esperado pelo template
         if not use_raw:
             ext = preset["ext"]
             target = Path(out_template + f".{ext}")
             if target.exists():
-                log.info(f"Ficheiro encontrado: {target}")
+                log.info(f"Ficheiro via template: {target}")
                 return target
 
-        # Fallback: scan output dir for file with matching stem
-        log.debug(f"A procurar ficheiros com stem '{stem}' em {output_path}")
+        # 3. Fallback final: scan do directório por stem
         try:
             for f in output_path.iterdir():
                 if f.stem == stem:
-                    log.info(f"Ficheiro encontrado por scan: {f}")
+                    log.info(f"Ficheiro via scan: {f}")
                     return f
         except Exception as e:
-            log.error(f"Erro ao fazer scan do dir de saída: {e}")
+            log.error(f"Erro ao fazer scan: {e}")
 
         log.error(f"Ficheiro não encontrado após download de '{query}'. Verificar {output_path}")
         return None

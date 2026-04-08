@@ -29,14 +29,19 @@ echo ""
 echo "=== SONGER Release ==="
 echo "  $CURRENT -> $NEW_VERSION ($BUMP)"
 echo ""
-read -p "Continue? [y/N] " -n 1 -r
-echo ""
-[[ ! $REPLY =~ ^[Yy]$ ]] && echo "Cancelled." && exit 0
+if [[ "${AUTO_YES:-}" == "1" ]]; then
+  echo "Auto-confirming (AUTO_YES=1)"
+else
+  read -p "Continue? [y/N] " -n 1 -r
+  echo ""
+  [[ ! $REPLY =~ ^[Yy]$ ]] && echo "Cancelled." && exit 0
+fi
 
 # ── 2. Write new version everywhere ──
 echo "$NEW_VERSION" > VERSION
 if [ -f landing/index.html ]; then
   sed -i '' "s/SONGER v[0-9]*\.[0-9]*\.[0-9]*/SONGER v${NEW_VERSION}/g" landing/index.html
+  sed -i '' "s/v[0-9]*\.[0-9]*\.[0-9]* out now/v${NEW_VERSION} out now/g" landing/index.html
 fi
 echo "-> VERSION updated to $NEW_VERSION"
 

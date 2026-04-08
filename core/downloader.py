@@ -30,6 +30,7 @@ class Downloader:
         self._config = config
         self._yt = None
         self._slsk = None
+        self._ytdlp = None
         max_workers = config.get("download", "max_concurrent", default=2)
         self._pool = ThreadPoolExecutor(max_workers=max_workers)
         self._cancelled: set[str] = set()
@@ -138,6 +139,9 @@ class Downloader:
             if source == "youtube":
                 result_path = self._dl_yt(track, output_path, fmt, progress_cb)
 
+            elif source == "direct":
+                result_path = self._dl_direct(track, output_path, fmt, progress_cb)
+
             elif source == "soulseek":
                 if self._slsk and self._slsk.is_connected():
                     result_path = self._dl_slsk(track, output_path, fmt, progress_cb)
@@ -193,6 +197,12 @@ class Downloader:
 
     def _dl_slsk(self, track, output_path, fmt, progress_cb):
         return self._slsk.download(track, output_path, fmt, progress_cb)
+
+    def _dl_direct(self, track, output_path, fmt, progress_cb):
+        if self._ytdlp is None:
+            from .ytdlp import YtDlpClient
+            self._ytdlp = YtDlpClient()
+        return self._ytdlp.download(track, output_path, fmt, progress_cb)
 
     def _output_path(self, track: dict) -> Path:
         base = Path(self._config.get("download", "path", default=str(Path.home() / "Music" / "SONGER")))

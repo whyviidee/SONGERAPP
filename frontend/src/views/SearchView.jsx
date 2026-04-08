@@ -1,9 +1,48 @@
 import { useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IoSearch, IoMusicalNotes, IoDisc, IoPerson } from 'react-icons/io5'
+import { IoSearch, IoMusicalNotes, IoDisc, IoPerson, IoArchive } from 'react-icons/io5'
 import TrackRow from '../components/TrackRow'
 import GlassCard from '../components/GlassCard'
 import { api } from '../lib/api'
+
+function ZipButton({ playlistId, playlistName }) {
+  const [status, setStatus] = useState('idle')
+  const [progress, setProgress] = useState(0)
+
+  const handleZip = async () => {
+    setStatus('zipping')
+    setProgress(0)
+    try {
+      const r = await fetch(`/api/playlists/${playlistId}/zip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: playlistName }),
+      })
+      const data = await r.json()
+      if (!data.job_id) { setStatus('error'); return }
+      const poll = setInterval(async () => {
+        try {
+          const s = await fetch(`/api/zip/${data.job_id}/status`).then(r => r.json())
+          setProgress(s.progress || 0)
+          if (s.status === 'done') { clearInterval(poll); setStatus('done'); setTimeout(() => setStatus('idle'), 3000) }
+          else if (s.status === 'error') { clearInterval(poll); setStatus('error'); setTimeout(() => setStatus('idle'), 3000) }
+        } catch { clearInterval(poll); setStatus('error') }
+      }, 1500)
+    } catch { setStatus('error') }
+  }
+
+  const label = status === 'zipping' ? `${progress}%` : status === 'done' ? 'Saved!' : status === 'error' ? 'Failed' : 'Download ZIP'
+  const bg = status === 'done' ? 'rgba(6,182,212,0.15)' : status === 'error' ? 'rgba(248,113,113,0.15)' : 'rgba(139,92,246,0.15)'
+  const color = status === 'done' ? '#06b6d4' : status === 'error' ? '#f87171' : '#c4b5fd'
+
+  return (
+    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+      onClick={handleZip} disabled={status === 'zipping'}
+      style={{ background: bg, border: '1px solid rgba(139,92,246,0.3)', borderRadius: 14, padding: '10px 18px', color, cursor: status === 'zipping' ? 'wait' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 7 }}>
+      <IoArchive size={15} /> {label}
+    </motion.button>
+  )
+}
 
 export default function SearchView({ downloadedIds, refreshDownloadedIds, onNavigate }) {
   const [query, setQuery] = useState('')
@@ -96,6 +135,17 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds, onNavi
               <Icon size={14} /> {label} <span style={{ opacity: 0.5 }}>{count}</span>
             </motion.button>
           ))}
+        </div>
+      )}
+
+      {/* Playlist header + ZIP button */}
+      {results?.playlist_id && tracks.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#f0f0f5' }}>{results.playlist_name}</div>
+            <div style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)', marginTop: 2 }}>{tracks.length} tracks</div>
+          </div>
+          <ZipButton playlistId={results.playlist_id} playlistName={results.playlist_name} />
         </div>
       )}
 

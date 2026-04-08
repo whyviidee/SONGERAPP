@@ -87,6 +87,17 @@ export const api = {
   history: () => get('/api/history'),
   clearHistory: () => del('/api/history'),
 
+  urlInfo: (url) => post('/api/url-info', { url }),
+  downloadDirect: (track) => post('/api/download', {
+    id: track.id,
+    name: track.title,
+    artist: track.artist,
+    album: track.album || '',
+    cover: track.cover_url || '',
+    url: track.url,
+    _source: 'direct',
+  }),
+
   trending: () => get('/api/trending'),
   trendingRefresh: (key) => post(`/api/trending/${key}/refresh`),
 

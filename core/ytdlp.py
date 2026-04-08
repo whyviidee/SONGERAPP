@@ -169,6 +169,16 @@ class YtDlpClient:
         if progress_cb:
             opts["progress_hooks"] = [lambda d: _hook(d, progress_cb)]
 
+        final_path_holder: dict = {}
+
+        def pp_hook(d: dict):
+            if d.get("status") == "finished":
+                fp = (d.get("info_dict") or {}).get("filepath") or d.get("filepath", "")
+                if fp:
+                    final_path_holder["path"] = fp
+
+        opts["postprocessor_hooks"] = [pp_hook]
+
         try:
             log.info(f"YtDlpClient.download: {url} | fmt={fmt}")
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -180,6 +190,14 @@ class YtDlpClient:
             log.error(f"Erro inesperado: {e}", exc_info=True)
             raise RuntimeError(f"Erro inesperado: {e}") from e
 
+        # 1. postprocessor_hook (mais fiável)
+        if final_path_holder.get("path"):
+            p = Path(final_path_holder["path"])
+            if p.exists():
+                log.info(f"Ficheiro via pp_hook: {p}")
+                return p
+
+        # 2. template path
         if not use_raw:
             ext = preset["ext"]
             target = Path(out_template + f".{ext}")
@@ -187,7 +205,7 @@ class YtDlpClient:
                 log.info(f"Ficheiro encontrado: {target}")
                 return target
 
-        # Fallback: scan dir for file with matching stem
+        # 3. scan dir
         try:
             for f in output_path.iterdir():
                 if f.stem == stem:

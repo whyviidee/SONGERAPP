@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion'
-import { IoHome, IoSearch, IoCloudDownload, IoLibrary, IoFlame, IoSettings } from 'react-icons/io5'
+import { IoHome, IoSearch, IoCloudDownload, IoLibrary, IoFlame, IoSettings, IoHelpCircle, IoLink } from 'react-icons/io5'
 import { useDownloadQueue } from '../hooks/useDownloadQueue'
 
 const NAV_ITEMS = [
   { id: 'home', icon: IoHome, label: 'Home' },
   { id: 'search', icon: IoSearch, label: 'Search' },
+  { id: 'url_download', icon: IoLink, label: 'URL' },
   { id: 'queue', icon: IoCloudDownload, label: 'Downloads' },
   { id: 'library', icon: IoLibrary, label: 'My Music' },
   { id: 'trending', icon: IoFlame, label: 'Trending' },
+  { id: 'faq', icon: IoHelpCircle, label: 'Help' },
   { id: 'settings', icon: IoSettings, label: 'Settings' },
 ]
 
