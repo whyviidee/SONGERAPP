@@ -1711,6 +1711,7 @@ def _run_zip_job(job_id: str, playlist_id: str, playlist_name: str):
         tmp_dir = Path(tempfile.mkdtemp(prefix="songer_zip_"))
 
         from core.youtube import YouTubeClient
+        from core.metadata import embed_metadata
         yt = YouTubeClient()
 
         downloaded = []
@@ -1726,6 +1727,10 @@ def _run_zip_job(job_id: str, playlist_id: str, playlist_name: str):
             try:
                 path = yt.download(t, tmp_dir, fmt)
                 if path and path.exists():
+                    try:
+                        embed_metadata(path, t)
+                    except Exception:
+                        pass
                     downloaded.append(path)
             except Exception:
                 pass
