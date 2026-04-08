@@ -676,7 +676,7 @@
       <li><a href="#showcase">App</a></li>
       <li><a href="#features">Features</a></li>
       <li><a href="https://github.com/whyviidee/SONGERAPP" target="_blank">GitHub</a></li>
-      <li><a id="nav-dl" href="/SONGER-arm64.dmg" class="nav-dl" download>Download</a></li>
+      <li><a href="#download" class="nav-dl">Download</a></li>
     </ul>
   </nav>
 
@@ -685,7 +685,7 @@
     <div class="hero-text">
       <div class="hero-label" data-reveal>
         <span class="dot"></span>
-        <span id="hero-version">v2.2.27 out now</span>
+        <span id="hero-version">v2.2.29 out now</span>
       </div>
       <h1 data-reveal data-reveal-delay="1">
         Search it.<br><em>Download it.</em><br>Keep it.
@@ -694,12 +694,22 @@
         Find any track on Spotify or Tidal. SONGER grabs it from YouTube in 320kbps MP3 with full metadata and cover art. No subscriptions, no streaming. Your files, your drive.
       </p>
       <div class="hero-actions" data-reveal data-reveal-delay="3">
-        <div id="dl-wrap" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
-          <a id="dl-primary" href="/SONGER-arm64.dmg" class="btn-main" download>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span id="dl-label">Download for Mac</span>
-          </a>
-          <a id="dl-other" href="#" style="font-size:12px;color:rgba(232,232,240,0.35);text-decoration:none;padding-left:4px;display:none;" download></a>
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <a href="/SONGER-arm64.dmg" class="btn-main" download style="font-size:13px;padding:10px 18px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Mac — Apple Silicon
+            </a>
+            <a href="/SONGER-x86_64.dmg" class="btn-main" download style="font-size:13px;padding:10px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Mac — Intel
+            </a>
+            <a href="/SONGER-windows.zip" class="btn-main" style="font-size:13px;padding:10px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Windows
+            </a>
+          </div>
+          <span style="font-size:11px;color:rgba(232,232,240,0.3);padding-left:2px;">Not sure? Mac M1/M2/M3/M4 = Apple Silicon · Mac 2019 or older = Intel</span>
         </div>
         <a href="#showcase" class="btn-ghost">See it in action</a>
       </div>
@@ -837,18 +847,29 @@
   </section>
 
   <!-- BOTTOM CTA -->
-  <section class="bottom-cta">
+  <section class="bottom-cta" id="download">
     <h2 data-reveal>Stop renting your music</h2>
     <p data-reveal data-reveal-delay="1">Free and open source. Mac &amp; Windows. Works everywhere.</p>
-    <a id="dl-cta" href="/SONGER-arm64.dmg" class="btn-main" data-reveal data-reveal-delay="2" download>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span id="dl-cta-label">Download SONGER</span>
-    </a>
+    <div data-reveal data-reveal-delay="2" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+      <a href="/SONGER-arm64.dmg" class="btn-main" download style="font-size:13px;padding:10px 18px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Mac — Apple Silicon
+      </a>
+      <a href="/SONGER-x86_64.dmg" class="btn-main" download style="font-size:13px;padding:10px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Mac — Intel
+      </a>
+      <a href="/SONGER-windows.zip" class="btn-main" style="font-size:13px;padding:10px 18px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Windows
+      </a>
+    </div>
+    <p style="font-size:11px;color:rgba(232,232,240,0.3);margin-top:12px;">Mac M1/M2/M3/M4 = Apple Silicon · Mac 2019 or older = Intel</p>
   </section>
 
   <!-- FOOTER -->
   <footer>
-    <span id="footer-version">SONGER v2.2.27</span>
+    <span id="footer-version">SONGER v2.2.29</span>
     <a href="https://dagotinho.pt" target="_blank">MWLBYD</a>
   </footer>
 
@@ -882,62 +903,6 @@
       }
     });
 
-    // OS + chip detection
-    (function() {
-      const isWindows = /Win/i.test(navigator.platform || navigator.userAgent);
-
-      const arm = '/SONGER-arm64.dmg';
-      const x86 = '/SONGER-x86_64.dmg';
-      const win = '/SONGER-windows.zip';
-
-      const primary = document.getElementById('dl-primary');
-      const label   = document.getElementById('dl-label');
-      const other   = document.getElementById('dl-other');
-      const navDl   = document.getElementById('nav-dl');
-      const cta     = document.getElementById('dl-cta');
-      const ctaLbl  = document.getElementById('dl-cta-label');
-
-      if (isWindows) {
-        primary.href = win; navDl.href = win; cta.href = win;
-        primary.removeAttribute('download'); navDl.removeAttribute('download'); cta.removeAttribute('download');
-        label.textContent = 'Download for Windows';
-        ctaLbl.textContent = 'Download SONGER for Windows';
-        other.href = arm; other.setAttribute('download', '');
-        other.textContent = 'Mac? Download here';
-        other.style.display = 'block';
-        return;
-      }
-
-      // Mac — detect Apple Silicon via WebGL renderer
-      let isAppleSilicon = false;
-      try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (gl) {
-          const ext = gl.getExtension('WEBGL_debug_renderer_info');
-          if (ext) {
-            const renderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '';
-            isAppleSilicon = /Apple M\d|Apple GPU/i.test(renderer);
-          }
-        }
-      } catch(e) {}
-
-      if (isAppleSilicon) {
-        primary.href = arm; navDl.href = arm; cta.href = arm;
-        label.textContent = 'Download for Mac — Apple Silicon';
-        ctaLbl.textContent = 'Download SONGER (Apple Silicon)';
-        other.href = x86;
-        other.textContent = 'Intel Mac? Download here';
-        other.style.display = 'block';
-      } else {
-        primary.href = x86; navDl.href = x86; cta.href = x86;
-        label.textContent = 'Download for Mac — Intel';
-        ctaLbl.textContent = 'Download SONGER (Intel)';
-        other.href = arm;
-        other.textContent = 'Apple Silicon Mac? Download here';
-        other.style.display = 'block';
-      }
-    })();
 
     // Cursor glow (desktop)
     if (window.matchMedia('(hover: hover)').matches) {
