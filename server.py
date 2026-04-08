@@ -105,6 +105,36 @@ def index():
     )
 
 
+@app.route("/api/spotify/auth-url", methods=["POST"])
+def api_spotify_auth_url():
+    """Save Spotify credentials and return the OAuth URL (for system browser flow)."""
+    data = request.get_json() or {}
+    client_id = data.get("client_id", "").strip()
+    client_secret = data.get("client_secret", "").strip()
+
+    if not client_id or not client_secret:
+        return jsonify({"error": "client_id and client_secret required"}), 400
+
+    cfg = _load_config()
+    cfg.setdefault("spotify", {})
+    cfg["spotify"]["client_id"] = client_id
+    cfg["spotify"]["client_secret"] = client_secret
+    cfg["spotify"]["redirect_uri"] = REDIRECT_URI
+    _save_config(cfg)
+
+    _session["client_id"] = client_id
+    _session["client_secret"] = client_secret
+
+    params = {
+        "client_id": client_id,
+        "response_type": "code",
+        "redirect_uri": REDIRECT_URI,
+        "scope": SCOPES,
+    }
+    auth_url = "https://accounts.spotify.com/authorize?" + urlencode(params)
+    return jsonify({"ok": True, "url": auth_url})
+
+
 @app.route("/setup", methods=["POST"])
 def setup():
     client_id = request.form.get("client_id", "").strip()
@@ -175,7 +205,11 @@ def callback():
     except Exception as e:
         return render_template("index.html", error=str(e), has_token=False)
 
-    return redirect("/app")
+    return """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>SONGER</title>
+<style>body{background:#0a0a0f;color:#f0f0f5;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:12px;}
+h2{color:#22c55e;margin:0;}p{color:rgba(240,240,245,0.5);font-size:14px;margin:0;}</style></head>
+<body><h2>Spotify connected!</h2><p>You can close this tab and return to SONGER.</p></body></html>"""
 
 
 @app.route("/status")
@@ -302,6 +336,19 @@ def api_tidal_login_complete():
         return jsonify({"ok": False, "error": "Login not completed yet"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tidal/disconnect", methods=["POST"])
+def api_tidal_disconnect():
+    """Clear Tidal session."""
+    from pathlib import Path
+    session_path = Path.home() / ".songer" / "tidal_session.json"
+    if session_path.exists():
+        session_path.unlink()
+    _tidal_login_state.clear()
+    global _tidal_client
+    _tidal_client = None
+    return jsonify({"ok": True})
 
 
 @app.route("/api/service", methods=["POST"])
@@ -648,10 +695,25 @@ def api_settings():
 # Download queue
 # ------------------------------------------------------------------
 
+@app.route("/api/url-info", methods=["POST"])
+def api_url_info():
+    """Extract metadata from a direct URL (SoundCloud, Bandcamp, Mixcloud, etc.)."""
+    data = request.get_json() or {}
+    url = (data.get("url") or "").strip()
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    try:
+        from core.ytdlp import YtDlpClient
+        info = YtDlpClient().extract_info(url)
+        return jsonify({"ok": True, "track": info})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @app.route("/api/download", methods=["POST"])
 def api_download():
     data = request.get_json() or {}
-    track_id = data.get("id") or data.get("uri", "")
+    track_id = data.get("id") or data.get("uri", "") or data.get("url", "")
     if not track_id:
         return jsonify({"error": "id required"}), 400
 
@@ -693,17 +755,19 @@ def _run_download(job_id: str, track: dict):
         # Build track dict matching the downloader's expected format
         t = {
             "id": track.get("id", ""),
-            "title": track.get("name", "Unknown"),
+            "title": track.get("name", "") or track.get("title", "Unknown"),
             "artist": track.get("artist", ""),
             "album": track.get("album", ""),
-            "cover_url": track.get("cover", ""),
+            "cover_url": track.get("cover", "") or track.get("cover_url", ""),
             "uri": track.get("uri", ""),
+            "url": track.get("url", ""),
             "genre": track.get("genre", ""),
         }
 
         cfg = _load_config()
         fmt = cfg.get("download", {}).get("format", "mp3")
-        source = cfg.get("download", {}).get("source", "youtube")
+        # Allow per-request source override (e.g. "direct" for URL downloads)
+        source = track.get("_source") or cfg.get("download", {}).get("source", "youtube")
 
         result_holder = {}
         done_event = threading.Event()
@@ -1150,11 +1214,21 @@ def api_check_update():
         r.raise_for_status()
         data = r.json()
         latest = data.get("tag_name", "").lstrip("v")
+        import platform as _plat
+        _machine = _plat.machine().lower()  # "arm64" or "x86_64"
+        _arch_tag = "arm64" if _machine == "arm64" else "x86_64"
         download_url = ""
+        fallback_url = ""
         for asset in data.get("assets", []):
-            if asset["name"].endswith(".dmg"):
-                download_url = asset["browser_download_url"]
-                break
+            name = asset["name"]
+            if name.endswith(".dmg"):
+                if _arch_tag in name:
+                    download_url = asset["browser_download_url"]
+                    break
+                elif not fallback_url:
+                    fallback_url = asset["browser_download_url"]
+        if not download_url:
+            download_url = fallback_url
         def _ver(v):
             try: return tuple(int(x) for x in v.split('.'))
             except: return (0,)
@@ -1166,6 +1240,7 @@ def api_check_update():
             "latest": latest,
             "has_update": has_update,
             "download_url": download_url,
+            "arch": _arch_tag,
             "release_notes": data.get("body", ""),
             "translocated": translocated,
         })

@@ -685,7 +685,7 @@
     <div class="hero-text">
       <div class="hero-label" data-reveal>
         <span class="dot"></span>
-        v2.0 out now
+        v2.2.10 out now
       </div>
       <h1 data-reveal data-reveal-delay="1">
         Search it.<br><em>Download it.</em><br>Keep it.
@@ -827,7 +827,7 @@
 
   <!-- FOOTER -->
   <footer>
-    <span>SONGER v2.2.5</span>
+    <span>SONGER v2.2.26#resetparaorelease.shfazerbumpcorrectamente</span>
     <a href="https://dagotinho.pt" target="_blank">MWLBYD</a>
   </footer>
 
@@ -850,9 +850,33 @@
       }
     });
 
-    // Chip detection — Apple Silicon vs Intel
+    // OS + chip detection
     (function() {
-      // WebGL renderer trick: Apple Silicon GPUs report "Apple" in renderer string
+      const isWindows = /Win/i.test(navigator.platform || navigator.userAgent);
+
+      const arm = '/SONGER-arm64.dmg';
+      const x86 = '/SONGER-x86_64.dmg';
+      const win = '/SONGER-windows.zip';
+
+      const primary = document.getElementById('dl-primary');
+      const label   = document.getElementById('dl-label');
+      const other   = document.getElementById('dl-other');
+      const navDl   = document.getElementById('nav-dl');
+      const cta     = document.getElementById('dl-cta');
+      const ctaLbl  = document.getElementById('dl-cta-label');
+
+      if (isWindows) {
+        primary.href = win; navDl.href = win; cta.href = win;
+        primary.removeAttribute('download'); navDl.removeAttribute('download'); cta.removeAttribute('download');
+        label.textContent = 'Download for Windows';
+        ctaLbl.textContent = 'Download SONGER for Windows';
+        other.href = arm; other.setAttribute('download', '');
+        other.textContent = 'Mac? Download here';
+        other.style.display = 'block';
+        return;
+      }
+
+      // Mac — detect Apple Silicon via WebGL renderer
       let isAppleSilicon = false;
       try {
         const canvas = document.createElement('canvas');
@@ -866,18 +890,7 @@
         }
       } catch(e) {}
 
-      const arm = '/SONGER-arm64.dmg';
-      const x86 = '/SONGER-x86_64.dmg';
-
-      const primary = document.getElementById('dl-primary');
-      const label   = document.getElementById('dl-label');
-      const other   = document.getElementById('dl-other');
-      const navDl   = document.getElementById('nav-dl');
-      const cta     = document.getElementById('dl-cta');
-      const ctaLbl  = document.getElementById('dl-cta-label');
-
       if (isAppleSilicon) {
-        // Apple Silicon detected
         primary.href = arm; navDl.href = arm; cta.href = arm;
         label.textContent = 'Download for Mac — Apple Silicon';
         ctaLbl.textContent = 'Download SONGER (Apple Silicon)';
@@ -885,7 +898,6 @@
         other.textContent = 'Intel Mac? Download here';
         other.style.display = 'block';
       } else {
-        // Intel or unknown — show Intel as primary, Silicon as secondary
         primary.href = x86; navDl.href = x86; cta.href = x86;
         label.textContent = 'Download for Mac — Intel';
         ctaLbl.textContent = 'Download SONGER (Intel)';

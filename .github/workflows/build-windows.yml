@@ -1,0 +1,63 @@
+name: Build Windows
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install flask spotipy yt-dlp mutagen imageio-ffmpeg pywebview requests pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller songer_windows.spec --clean --noconfirm --distpath dist-win
+
+      - name: Get version
+        id: version
+        run: echo "version=$(Get-Content VERSION)" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Package as zip
+        run: Compress-Archive -Path dist-win/SONGER.exe -DestinationPath "SONGER-${{ steps.version.outputs.version }}-windows.zip"
+        shell: pwsh
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: SONGER-${{ steps.version.outputs.version }}-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy Windows zip to Vercel landing
+        run: |
+          npm install -g vercel
+          Copy-Item "SONGER-${{ steps.version.outputs.version }}-windows.zip" "landing/SONGER-windows.zip"
+          cd landing
+          vercel --prod --yes --token $env:VERCEL_TOKEN
+          Remove-Item "SONGER-windows.zip"
+        shell: pwsh
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

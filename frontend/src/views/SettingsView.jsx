@@ -28,7 +28,57 @@ export default function SettingsView() {
   const [tidalOk, setTidalOk] = useState(false)
   const [tidalLogging, setTidalLogging] = useState(false)
   const [tidalUrl, setTidalUrl] = useState('')
+  const [spotifyLogging, setSpotifyLogging] = useState(false)
+  const [spotifyClientId, setSpotifyClientId] = useState('')
+  const [spotifyClientSecret, setSpotifyClientSecret] = useState('')
+  const [showSpotifyForm, setShowSpotifyForm] = useState(false)
   const [appVersion, setAppVersion] = useState('')
+
+  const startTidalLogin = async () => {
+    setTidalLogging(true)
+    try {
+      const r = await fetch('/api/tidal/login', { method: 'POST' }).then(r => r.json())
+      if (r.url) {
+        setTidalUrl(r.url)
+        fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: r.url }) }).catch(() => {})
+        const poll = setInterval(async () => {
+          const c = await fetch('/api/tidal/login/complete', { method: 'POST' }).then(r => r.json())
+          if (c.ok) {
+            clearInterval(poll)
+            setMusicService('tidal')
+            setTidalOk(true)
+            setTidalLogging(false)
+            setTidalUrl('')
+          }
+        }, 3000)
+        setTimeout(() => { clearInterval(poll); setTidalLogging(false) }, 300000)
+      }
+    } catch { setTidalLogging(false) }
+  }
+
+  const startSpotifyLogin = async (clientId, clientSecret) => {
+    setSpotifyLogging(true)
+    setShowSpotifyForm(false)
+    try {
+      const r = await fetch('/api/spotify/auth-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
+      }).then(r => r.json())
+      if (r.url) {
+        fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: r.url }) }).catch(() => {})
+        const poll = setInterval(async () => {
+          const s = await fetch('/api/status').then(r => r.json())
+          if (s.spotify === 'ok') {
+            clearInterval(poll)
+            setSpotifyOk(true)
+            setSpotifyLogging(false)
+          }
+        }, 3000)
+        setTimeout(() => { clearInterval(poll); setSpotifyLogging(false) }, 300000)
+      }
+    } catch { setSpotifyLogging(false) }
+  }
 
   useEffect(() => {
     fetch('/api/version').then(r => r.json()).then(d => setAppVersion(d.version)).catch(() => {})
@@ -46,6 +96,8 @@ export default function SettingsView() {
       setFormat(dl.format || 'mp3_320')
       setMaxConcurrent(dl.max_concurrent || 6)
       setOrganize(dl.organize !== false)
+      const sp = cfg.spotify || {}
+      if (sp.client_id) setSpotifyClientId(sp.client_id)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -116,26 +168,7 @@ export default function SettingsView() {
             <motion.button key={svc} whileTap={{ scale: 0.95 }}
               onClick={async () => {
                 if (svc === 'tidal' && musicService !== 'tidal') {
-                  // Start Tidal login
-                  setTidalLogging(true)
-                  try {
-                    const r = await fetch('/api/tidal/login', { method: 'POST' }).then(r => r.json())
-                    if (r.url) {
-                      setTidalUrl(r.url)
-                      fetch('/api/open-url', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: r.url }) }).catch(() => {})
-                      // Poll for completion
-                      const poll = setInterval(async () => {
-                        const c = await fetch('/api/tidal/login/complete', { method: 'POST' }).then(r => r.json())
-                        if (c.ok) {
-                          clearInterval(poll)
-                          setMusicService('tidal')
-                          setTidalLogging(false)
-                          setTidalUrl('')
-                        }
-                      }, 3000)
-                      setTimeout(() => { clearInterval(poll); setTidalLogging(false) }, 300000)
-                    }
-                  } catch { setTidalLogging(false) }
+                  await startTidalLogin()
                 } else if (svc === 'spotify') {
                   await fetch('/api/service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service: 'spotify' }) })
                   setMusicService('spotify')
@@ -352,14 +385,62 @@ export default function SettingsView() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 500, color: '#f0f0f5', fontSize: 14 }}>Spotify</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <motion.button whileTap={{ scale: 0.95 }}
+                onClick={() => setShowSpotifyForm(f => !f)}
+                style={{
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8, padding: '4px 10px', color: 'rgba(240,240,245,0.5)',
+                  cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+                }}>
+                Reconfigure
+              </motion.button>
               <span style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>{spotifyOk ? 'Connected' : 'Not connected'}</span>
               <div style={{ width: 8, height: 8, borderRadius: 4, background: spotifyOk ? '#22c55e' : '#f87171' }} />
             </div>
           </div>
+          {showSpotifyForm && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4 }}>
+              <input
+                placeholder="Client ID"
+                value={spotifyClientId}
+                onChange={e => setSpotifyClientId(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: '#f0f0f5', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+              />
+              <input
+                placeholder="Client Secret"
+                type="password"
+                value={spotifyClientSecret}
+                onChange={e => setSpotifyClientSecret(e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: '#f0f0f5', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+              />
+              <motion.button whileTap={{ scale: 0.95 }}
+                onClick={() => startSpotifyLogin(spotifyClientId, spotifyClientSecret)}
+                disabled={!spotifyClientId || !spotifyClientSecret}
+                style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '7px 10px', color: '#f0f0f5', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', opacity: (!spotifyClientId || !spotifyClientSecret) ? 0.4 : 1 }}>
+                Authorize in browser
+              </motion.button>
+            </div>
+          )}
+          {spotifyLogging && (
+            <div style={{ fontSize: 13, color: '#1db954' }}>Authorize in your browser, then come back...</div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 500, color: '#f0f0f5', fontSize: 14 }}>Tidal</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <motion.button whileTap={{ scale: 0.95 }}
+                onClick={async () => {
+                  await fetch('/api/tidal/disconnect', { method: 'POST' })
+                  setTidalOk(false)
+                  await startTidalLogin()
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8, padding: '4px 10px', color: 'rgba(240,240,245,0.5)',
+                  cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+                }}>
+                Reconfigure
+              </motion.button>
               <span style={{ fontSize: 12, color: 'rgba(240,240,245,0.4)' }}>{tidalOk ? 'Connected' : 'Not connected'}</span>
               <div style={{ width: 8, height: 8, borderRadius: 4, background: tidalOk ? '#22c55e' : 'rgba(240,240,245,0.2)' }} />
             </div>
