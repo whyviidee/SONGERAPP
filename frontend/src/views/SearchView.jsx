@@ -1,29 +1,23 @@
 import { useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { IoSearch, IoCloudDownload, IoMusicalNotes, IoDisc, IoPerson } from 'react-icons/io5'
+import { IoSearch, IoMusicalNotes, IoDisc, IoPerson } from 'react-icons/io5'
 import TrackRow from '../components/TrackRow'
 import GlassCard from '../components/GlassCard'
 import { api } from '../lib/api'
 
-export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
+export default function SearchView({ downloadedIds, refreshDownloadedIds, onNavigate }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('tracks')
-  const [albumTracks, setAlbumTracks] = useState(null)
-  const [albumInfo, setAlbumInfo] = useState(null)
-  const [loadingAlbum, setLoadingAlbum] = useState(false)
   const timerRef = useRef(null)
 
   const doSearch = useCallback(async (q) => {
     if (!q.trim()) { setResults(null); return }
     setLoading(true)
-    setAlbumTracks(null)
-    setAlbumInfo(null)
     try {
       const data = await api.search(q)
       setResults(data)
-      // Auto-select first tab with results
       const tracks = data?.tracks?.items || data?.tracks || []
       const albums = data?.albums?.items || data?.albums || []
       const artists = data?.artists?.items || data?.artists || []
@@ -49,20 +43,6 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
     try { await api.download(track); refreshDownloadedIds() } catch (e) { console.error(e) }
   }
 
-  const handleOpenAlbum = async (album) => {
-    setLoadingAlbum(true)
-    setAlbumInfo(album)
-    try {
-      const data = await api.album(album.id)
-      setAlbumTracks(data.tracks || data || [])
-    } catch (e) { console.error(e) }
-    setLoadingAlbum(false)
-  }
-
-  const handleDownloadAll = async (tracks) => {
-    try { await api.download(tracks); refreshDownloadedIds() } catch (e) { console.error(e) }
-  }
-
   const tracks = results?.tracks?.items || results?.tracks || []
   const albums = results?.albums?.items || results?.albums || []
   const artists = results?.artists?.items || results?.artists || []
@@ -72,53 +52,6 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
     { id: 'albums', label: 'Albums', count: albums.length, icon: IoDisc },
     { id: 'artists', label: 'Artists', count: artists.length, icon: IoPerson },
   ]
-
-  // Album detail view
-  if (albumInfo) {
-    const cover = albumInfo.images?.[0]?.url || albumInfo.cover
-    return (
-      <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {/* Album header */}
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end' }}>
-          {cover && (
-            <img src={api.coverUrl(cover)} alt=""
-              style={{ width: 160, height: 160, borderRadius: 20, objectFit: 'cover', boxShadow: '0 12px 40px rgba(0,0,0,0.5)' }} />
-          )}
-          <div style={{ flex: 1 }}>
-            <motion.button whileTap={{ scale: 0.95 }}
-              onClick={() => { setAlbumTracks(null); setAlbumInfo(null) }}
-              style={{ background: 'none', border: 'none', color: 'rgba(240,240,245,0.4)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', marginBottom: 8 }}>
-              &larr; Back to results
-            </motion.button>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#f0f0f5', margin: 0 }}>{albumInfo.name}</h1>
-            <p style={{ fontSize: 14, color: 'rgba(240,240,245,0.5)', margin: '6px 0' }}>
-              {albumInfo.artists?.map(a => a.name).join(', ')}
-              {albumInfo.release_date && ` · ${albumInfo.release_date.split('-')[0]}`}
-            </p>
-            <p style={{ fontSize: 13, color: 'rgba(240,240,245,0.4)' }}>{albumTracks.length} tracks</p>
-            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-              onClick={() => handleDownloadAll(albumTracks)}
-              style={{ marginTop: 12, background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', border: 'none', borderRadius: 14, padding: '10px 24px', color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <IoCloudDownload size={16} /> Download Album
-            </motion.button>
-          </div>
-        </div>
-
-        {loadingAlbum ? (
-          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-              style={{ width: 32, height: 32, border: '2px solid #8b5cf6', borderTopColor: 'transparent', borderRadius: '50%' }} />
-          </div>
-        ) : (
-          <GlassCard hover={false} style={{ padding: 8 }}>
-            {(albumTracks || []).map((track, i) => (
-              <TrackRow key={track.id || i} track={track} index={i} onDownload={handleDownload} isDownloaded={downloadedIds?.has(track.id)} />
-            ))}
-          </GlassCard>
-        )}
-      </div>
-    )
-  }
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -166,8 +99,8 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
         </div>
       )}
 
-      {/* Tracks */}
       <AnimatePresence mode="wait">
+        {/* Tracks */}
         {activeTab === 'tracks' && tracks.length > 0 && (
           <motion.div key="tracks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <GlassCard hover={false} style={{ padding: 8 }}>
@@ -186,7 +119,7 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
                 const cover = album.images?.[0]?.url || album.cover
                 return (
                   <motion.div key={album.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <GlassCard onClick={() => handleOpenAlbum(album)} style={{ padding: 12 }}>
+                    <GlassCard onClick={() => onNavigate('album', { id: album.id, _backView: 'search' })} style={{ padding: 12 }}>
                       {cover && (
                         <img src={api.coverUrl(cover)} alt=""
                           style={{ width: '100%', aspectRatio: '1', borderRadius: 16, objectFit: 'cover', marginBottom: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }} />
@@ -212,7 +145,8 @@ export default function SearchView({ downloadedIds, refreshDownloadedIds }) {
                 const img = artist.images?.[0]?.url || artist.cover
                 return (
                   <motion.div key={artist.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
-                    <GlassCard onClick={() => { setQuery(artist.name); doSearch(artist.name); setActiveTab('tracks') }}
+                    <GlassCard
+                      onClick={() => onNavigate('artist', { id: artist.id, _backView: 'search' })}
                       style={{ padding: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                       {img ? (
                         <img src={api.coverUrl(img)} alt=""
