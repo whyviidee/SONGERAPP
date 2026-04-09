@@ -117,6 +117,7 @@ class YouTubeClient:
             "noplaylist": True,
             "socket_timeout": 30,
             "postprocessor_hooks": [pp_hook],
+            "cookiesfrombrowser": ("chrome",),
         }
 
         if self._ffmpeg:
